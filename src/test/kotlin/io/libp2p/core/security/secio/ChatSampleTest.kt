@@ -16,7 +16,6 @@ import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import org.apache.logging.log4j.LogManager
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -40,7 +39,15 @@ class ChatController : ChannelInboundHandlerAdapter() {
         return respFuture
     }
 
-    fun chatAndGet(str: String, waitForSecs: Long = 60): String? {
+    fun read(waitForSecs: Long = 600): String? {
+        return try {
+            respFuture.get(waitForSecs, TimeUnit.SECONDS)
+        } catch (e: TimeoutException) {
+            null
+        }
+    }
+
+    fun chatAndGet(str: String, waitForSecs: Long = 600): String? {
         return try {
             chat(str).get(waitForSecs, TimeUnit.SECONDS)
         } catch (e: TimeoutException) {
@@ -113,10 +120,12 @@ class ChatSampleTest {
             completableFuture
         }.get()
 
-        var s1 = chatController.chatAndGet("Hello, my name is kotlin-libp2p. What is your name?")
+        var s1 = chatController.read()
+        logger.info("RECEIVED INITIAL: '$s1'")
+        s1 = chatController.chatAndGet("Hello, my name is kotlin-libp2p. What is your name?")
         logger.info("GOT: '$s1'")
         s1 = chatController.chatAndGet("Nice to meet you, '$s1'")
-        logger.info("GOT: $s1")
-        logger.info("Success!")
+        logger.info("Finally got: '$s1'")
+        logger.info("Test has completed!")
     }
 }
