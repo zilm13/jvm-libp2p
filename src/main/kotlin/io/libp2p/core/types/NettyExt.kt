@@ -1,5 +1,6 @@
 package io.libp2p.core.types
 
+import io.libp2p.core.util.netty.async.CacheAwareInboundHandler
 import io.netty.channel.Channel
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandler
@@ -25,4 +26,12 @@ fun ChannelPipeline.replace(oldHandler: ChannelHandler, newHandlers: List<Pair<S
     for (i in 1 until newHandlers.size) {
         addAfter(newHandlers[i - 1].first, newHandlers[i].first, newHandlers[i].second)
     }
+}
+
+fun ChannelPipeline.addLastX(vararg handler: ChannelHandler) {
+    handler.forEach { addLastX(null, it) }
+}
+
+fun ChannelPipeline.addLastX(name: String?, handler: ChannelHandler) {
+    CacheAwareInboundHandler.addLast(this, name, handler)
 }

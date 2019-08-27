@@ -11,6 +11,7 @@ import io.libp2p.core.multiformats.Protocol.IP6
 import io.libp2p.core.multiformats.Protocol.TCP
 import io.libp2p.core.transport.AbstractTransport
 import io.libp2p.core.transport.ConnectionUpgrader
+import io.libp2p.core.types.addLastX
 import io.libp2p.core.types.lazyVar
 import io.libp2p.core.types.toCompletableFuture
 import io.libp2p.core.types.toVoidCompletableFuture
@@ -96,7 +97,7 @@ class TcpTransport(
             .childHandler(nettyInitializer { ch ->
                 registerChannel(ch)
                 val (channelHandler, connFuture) = createConnectionHandler(streamHandler, false)
-                ch.pipeline().addLast(channelHandler)
+                ch.pipeline().addLastX(channelHandler)
                 connFuture.thenAccept { connHandler.accept(it) }
             })
             .bind(fromMultiaddr(addr))

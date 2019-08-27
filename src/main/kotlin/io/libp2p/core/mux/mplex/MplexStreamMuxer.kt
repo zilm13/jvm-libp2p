@@ -9,6 +9,7 @@ import io.libp2p.core.multistream.Mode
 import io.libp2p.core.multistream.ProtocolMatcher
 import io.libp2p.core.mux.MuxHandler
 import io.libp2p.core.mux.StreamMuxer
+import io.libp2p.core.types.addLastX
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
@@ -24,8 +25,8 @@ class MplexStreamMuxer : StreamMuxer {
         return object : P2PAbstractHandler<StreamMuxer.Session> {
             override fun initChannel(ch: P2PAbstractChannel): CompletableFuture<StreamMuxer.Session> {
                 val muxSessionFuture = CompletableFuture<StreamMuxer.Session>()
-                ch.ch.pipeline().addLast(MplexFrameCodec())
-                intermediateFrameHandler?.also { ch.ch.pipeline().addLast(it) }
+                ch.ch.pipeline().addLastX(MplexFrameCodec())
+                intermediateFrameHandler?.also { ch.ch.pipeline().addLastX(it) }
                 ch.ch.pipeline().addLast("MuxerSessionTracker", object : ChannelInboundHandlerAdapter() {
                     override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
                         when (evt) {

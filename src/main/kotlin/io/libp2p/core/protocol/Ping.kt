@@ -8,6 +8,7 @@ import io.libp2p.core.P2PAbstractHandler
 import io.libp2p.core.multistream.Mode
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolMatcher
+import io.libp2p.core.types.addLastX
 import io.libp2p.core.types.completedExceptionally
 import io.libp2p.core.types.lazyVar
 import io.libp2p.core.types.toByteArray
@@ -49,11 +50,11 @@ class PingProtocol : P2PAbstractHandler<PingController> {
     override fun initChannel(ch: P2PAbstractChannel): CompletableFuture<PingController> {
         return if (ch.isInitiator) {
             val handler = PingInitiatorChannelHandler()
-            ch.ch.pipeline().addLast(handler)
+            ch.ch.pipeline().addLastX(handler)
             handler.activeFuture.thenApply { handler }
         } else {
             val handler = PingResponderChannelHandler()
-            ch.ch.pipeline().addLast(handler)
+            ch.ch.pipeline().addLastX(handler)
             CompletableFuture.completedFuture(handler)
         }
     }

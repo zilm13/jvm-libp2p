@@ -1,5 +1,6 @@
 package io.libp2p.core
 
+import io.libp2p.core.types.addLastX
 import io.libp2p.core.types.toVoidCompletableFuture
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
@@ -56,7 +57,7 @@ class SimpleClientProtocol<TController : SimpleClientHandler>(
     override fun initChannel(ch: P2PAbstractChannel): CompletableFuture<TController> {
         val handler = handlerCtor()
         handler.initStream(ch as Stream)
-        ch.ch.pipeline().addLast(handler)
+        ch.ch.pipeline().addLastX(handler)
         return handler.activeFuture.thenApply { handler }
     }
 }

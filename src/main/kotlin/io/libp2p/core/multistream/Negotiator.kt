@@ -4,6 +4,7 @@ import io.libp2p.core.IS_INITIATOR
 import io.libp2p.core.events.ProtocolNegotiationFailed
 import io.libp2p.core.events.ProtocolNegotiationSucceeded
 import io.libp2p.core.protocol.Protocols
+import io.libp2p.core.types.addLastX
 import io.libp2p.core.util.netty.StringSuffixCodec
 import io.libp2p.core.util.netty.nettyInitializer
 import io.netty.channel.Channel
@@ -66,9 +67,9 @@ object Negotiator {
             StringSuffixCodec('\n')
         )
 
-        prehandlers.forEach { ch.pipeline().addLast(it) }
+        prehandlers.forEach { ch.pipeline().addLastX(it) }
         val initiator = ch.attr(IS_INITIATOR).get()
-        ch.pipeline().addLast(object : ChannelInboundHandlerAdapter() {
+        ch.pipeline().addLastX(object : ChannelInboundHandlerAdapter() {
             var i = 0
             var headerRead = false
 

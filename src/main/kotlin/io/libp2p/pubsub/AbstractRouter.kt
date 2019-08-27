@@ -3,6 +3,7 @@ package io.libp2p.pubsub
 import io.libp2p.core.Stream
 import io.libp2p.core.types.LRUSet
 import io.libp2p.core.types.MultiSet
+import io.libp2p.core.types.addLastX
 import io.libp2p.core.types.completedExceptionally
 import io.libp2p.core.types.copy
 import io.libp2p.core.types.forward
@@ -109,12 +110,12 @@ abstract class AbstractRouter : P2PServiceSemiDuplex(), PubsubRouter, PubsubRout
 
     override fun initChannel(streamHandler: StreamHandler) {
         with(streamHandler.stream.ch.pipeline()) {
-            addLast(ProtobufVarint32FrameDecoder())
-            addLast(ProtobufVarint32LengthFieldPrepender())
-            addLast(ProtobufDecoder(Rpc.RPC.getDefaultInstance()))
-            addLast(ProtobufEncoder())
-            debugHandler?.also { addLast(it) }
-            addLast(streamHandler)
+            addLastX(ProtobufVarint32FrameDecoder())
+            addLastX(ProtobufVarint32LengthFieldPrepender())
+            addLastX(ProtobufDecoder(Rpc.RPC.getDefaultInstance()))
+            addLastX(ProtobufEncoder())
+            debugHandler?.also { addLastX(it) }
+            addLastX(streamHandler)
         }
     }
 

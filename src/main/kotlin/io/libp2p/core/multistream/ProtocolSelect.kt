@@ -5,6 +5,7 @@ import io.libp2p.core.Libp2pException
 import io.libp2p.core.events.ProtocolNegotiationFailed
 import io.libp2p.core.events.ProtocolNegotiationSucceeded
 import io.libp2p.core.getP2PChannel
+import io.libp2p.core.types.addLastX
 import io.libp2p.core.types.forward
 import io.libp2p.core.util.netty.nettyInitializer
 import io.netty.channel.ChannelHandlerContext
@@ -25,7 +26,8 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
                 val protocolBinding = protocols.find { it.matcher.matches(evt.proto) }
                     ?: throw Libp2pException("Protocol negotiation failed: not supported protocol ${evt.proto}")
                 val bindingInitializer = protocolBinding.initializer(evt.proto)
-                ctx.pipeline().replace(this, "ProtocolBindingInitializer", nettyInitializer {
+                ctx.pipeline().remove(this)
+                ctx.pipeline().addLastX("ProtocolBindingInitializer", nettyInitializer {
                     bindingInitializer.initChannel(it.getP2PChannel()).forward(selectedFuture)
                 })
             }

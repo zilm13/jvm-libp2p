@@ -1,5 +1,6 @@
 package io.libp2p.core
 
+import io.libp2p.core.types.addLastX
 import io.netty.channel.ChannelHandler
 import java.util.function.Consumer
 
@@ -9,7 +10,7 @@ interface StreamHandler : Consumer<Stream> {
 
         fun create(channelInitializer: ChannelHandler) = object : StreamHandler {
             override fun accept(stream: Stream) {
-                stream.ch.pipeline().addLast(channelInitializer)
+                stream.ch.pipeline().addLastX(channelInitializer)
             }
         }
 
