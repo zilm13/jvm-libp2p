@@ -9,8 +9,6 @@ import io.libp2p.core.pubsub.PubsubSubscription
 import io.libp2p.core.pubsub.Topic
 import io.libp2p.etc.types.toByteArray
 import io.libp2p.etc.types.toByteBuf
-import io.libp2p.etc.types.toBytesBigEndian
-import io.libp2p.etc.types.toLongBigEndian
 import io.libp2p.etc.types.toProtobuf
 import io.netty.buffer.ByteBuf
 import pubsub.pb.Rpc
@@ -38,7 +36,7 @@ class PubsubApiImpl(val router: PubsubRouter) : PubsubApi {
                 .setFrom(from)
                 .addAllTopicIDs(topics.map { it.topic })
                 .setData(data.toByteArray().toProtobuf())
-                .setSeqno(seqCounter.incrementAndGet().toBytesBigEndian().toProtobuf())
+                .setSeqno(seqCounter.incrementAndGet())
                 .build()
             val signedMsg = pubsubSign(msgToSign, privKey)
             return router.publish(signedMsg)
@@ -63,7 +61,7 @@ class PubsubApiImpl(val router: PubsubRouter) : PubsubApi {
         return MessageImpl(
             msg.data.toByteArray().toByteBuf(),
             msg.from.toByteArray(),
-            msg.seqno.toByteArray().copyOfRange(0, 8).toLongBigEndian(),
+            msg.seqno,
             msg.topicIDsList.map { Topic(it) }
         )
     }

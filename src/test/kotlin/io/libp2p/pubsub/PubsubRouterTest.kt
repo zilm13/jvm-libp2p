@@ -1,6 +1,5 @@
 package io.libp2p.pubsub
 
-import io.libp2p.etc.types.toBytesBigEndian
 import io.libp2p.etc.types.toProtobuf
 import io.libp2p.etc.util.P2PService
 import io.libp2p.pubsub.flood.FloodRouter
@@ -24,7 +23,7 @@ class PubsubRouterTest {
     fun newMessage(topic: String, seqNo: Long, data: ByteArray) =
         Rpc.Message.newBuilder()
             .addTopicIDs(topic)
-            .setSeqno(seqNo.toBytesBigEndian().toProtobuf())
+            .setSeqno(seqNo)
             .setData(data.toProtobuf())
             .build()
 

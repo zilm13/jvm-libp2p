@@ -4,3 +4,5 @@ fun Boolean.whenTrue(run: () -> Unit): Boolean {
     run()
     return this
 }
+
+fun Long.toHex(): String = java.lang.Long.toHexString(this)
