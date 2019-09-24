@@ -7,16 +7,17 @@ group = "io.libp2p"
 version = "0.0.1-SNAPSHOT"
 description = "a minimal implementation of libp2p for the jvm"
 
-plugins {
-    java
-    idea
-    kotlin("jvm") version "1.3.31"
-    id("org.jmailen.kotlinter") version "1.26.0"
-    id("com.google.protobuf") version "0.8.7"
-    `build-scan`
+        plugins {
+            java
+            idea
+            kotlin("jvm") version "1.3.31"
+            id("org.jmailen.kotlinter") version "1.26.0"
+            id("com.google.protobuf") version "0.8.7"
 
-    `maven-publish`
+            `maven-publish`
 }
+
+apply("build.gradle.groovy")
 
 repositories {
     mavenCentral()
@@ -96,10 +97,6 @@ kotlinter {
     allowWildcardImports = false
 }
 
-buildScan {
-    termsOfServiceUrl = "https://gradle.com/terms-of-service"
-    termsOfServiceAgree = "yes"
-}
 
 val sourcesJar by tasks.registering(Jar::class) {
     classifier = "sources"
