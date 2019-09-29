@@ -32,11 +32,12 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
-open class NoiseXXSecureChannel(private val localKey: PrivKey, private val privateKey25519: ByteArray) :
+open class NoiseXXSecureChannel(private val localKey: PrivKey) :
     SecureChannel {
 
     private val logger = LogManager.getLogger(NoiseXXSecureChannel::class.java.name)
 
+    private lateinit var privateKey25519: ByteArray
     private lateinit var role: AtomicInteger
     private lateinit var localDHState: DHState
 
@@ -63,6 +64,7 @@ open class NoiseXXSecureChannel(private val localKey: PrivKey, private val priva
 
         // configure the localDHState with the private
         // which will automatically generate the corresponding public key
+        Noise.random(privateKey25519)
         localDHState = Noise.createDH("25519")
         localDHState.setPrivateKey(privateKey25519, 0)
 
