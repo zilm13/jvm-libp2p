@@ -46,12 +46,20 @@ dependencies {
     testCompile("org.junit.jupiter:junit-jupiter-params:5.4.2")
     testRuntime("org.junit.jupiter:junit-jupiter-engine:5.4.2")
 
+    compile("org.junit.jupiter:junit-jupiter-api:5.4.2")
+    compile("org.junit.jupiter:junit-jupiter-params:5.4.2")
+    runtime("org.junit.jupiter:junit-jupiter-engine:5.4.2")
+
 }
 
 sourceSets {
     main {
         proto {
             srcDir("src/main/proto")
+        }
+        java {
+            srcDir("src/test/java")
+            srcDir("src/test/kotlin")
         }
     }
 }
