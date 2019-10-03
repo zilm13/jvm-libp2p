@@ -7,10 +7,12 @@ import io.libp2p.core.crypto.KEY_TYPE
 import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.multistream.Mode
 import io.libp2p.core.multistream.ProtocolMatcher
+import io.libp2p.etc.types.toByteArray
 import io.libp2p.multistream.Negotiator
 import io.libp2p.multistream.ProtocolSelect
 import io.libp2p.tools.TestChannel.Companion.interConnect
 import io.libp2p.tools.TestHandler
+import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.logging.LogLevel
@@ -157,14 +159,7 @@ class NoiseSecureChannelTest {
         val (privKeyAlicePeer, _) = generateKeyPair(KEY_TYPE.ECDSA)
         val (privKeyBobPeer, _) = generateKeyPair(KEY_TYPE.ECDSA)
 
-//        val privateKey25519Alice = ByteArray(32)
-//        Noise.random(privateKey25519Alice)
-//        val privateKey25519Bob = ByteArray(32)
-//        Noise.random(privateKey25519Bob)
-
         // noise keys
-//        val ch1 = NoiseXXSecureChannel(privKeyAlicePeer, privateKey25519Alice)
-//        val ch2 = NoiseXXSecureChannel(privKeyBobPeer, privateKey25519Bob)
         val ch1 = NoiseXXSecureChannel(privKeyAlicePeer)
         val ch2 = NoiseXXSecureChannel(privKeyBobPeer)
 
@@ -195,7 +190,8 @@ class NoiseSecureChannelTest {
         // Setup alice's pipeline
         eCh1.pipeline().addLast(object : TestHandler("1") {
             override fun channelRead(ctx: ChannelHandlerContext, msg: Any?) {
-                rec1 = msg as String
+                msg as ByteBuf
+                rec1 = String(msg.toByteArray())
                 logger.debug("==$name== read: $msg")
                 latch.countDown()
             }
@@ -204,7 +200,8 @@ class NoiseSecureChannelTest {
         // Setup bob's pipeline
         eCh2.pipeline().addLast(object : TestHandler("2") {
             override fun channelRead(ctx: ChannelHandlerContext, msg: Any?) {
-                rec2 = msg as String
+                msg as ByteBuf
+                rec2 = String(msg.toByteArray())
                 logger.debug("==$name== read: $msg")
                 latch.countDown()
             }
@@ -229,10 +226,6 @@ class NoiseSecureChannelTest {
     fun testAnnounceAndMatch() {
         val (privKey1, _) = generateKeyPair(KEY_TYPE.ECDSA)
 
-//        val privateKey25519 = ByteArray(32)
-//        Noise.random(privateKey25519)
-
-//        val ch1 = NoiseXXSecureChannel(privKey1, privateKey25519)
         val ch1 = NoiseXXSecureChannel(privKey1)
 
         val announce = ch1.announce
