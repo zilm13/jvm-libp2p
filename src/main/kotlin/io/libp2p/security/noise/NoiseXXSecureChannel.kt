@@ -50,9 +50,6 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
     private var logger: Logger
     private var loggerNameParent: String = NoiseXXSecureChannel::class.java.name + this.hashCode()
-    private lateinit var chid: String
-
-    private lateinit var role: AtomicInteger
 
     private val handshakeHandlerName = "NoiseHandshake"
 
@@ -73,9 +70,9 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
             ch: P2PAbstractChannel,
             selectedProtocol: String
     ): CompletableFuture<SecureChannel.Session> {
-        role = if (ch.isInitiator) AtomicInteger(HandshakeState.INITIATOR) else AtomicInteger(HandshakeState.RESPONDER)
+        val role = if (ch.isInitiator) AtomicInteger(HandshakeState.INITIATOR) else AtomicInteger(HandshakeState.RESPONDER)
 
-        chid = "ch=" + ch.nettyChannel.id().asShortText() + "-" + ch.nettyChannel.localAddress() + "-" + ch.nettyChannel.remoteAddress()
+        val chid = "ch=" + ch.nettyChannel.id().asShortText() + "-" + ch.nettyChannel.localAddress() + "-" + ch.nettyChannel.remoteAddress()
         logger.debug(chid)
 
         val ret = CompletableFuture<SecureChannel.Session>()
@@ -105,14 +102,14 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 //                ctx.fireChannelActive()
             }
         }
-        ch.nettyChannel.pipeline().addLast(handshakeHandlerName + chid, NoiseIoHandshake())
+        ch.nettyChannel.pipeline().addLast(handshakeHandlerName + chid, NoiseIoHandshake(localKey, role.get().toInt(), "$chid|$loggerNameParent"))
         ch.nettyChannel.pipeline().addLast(handshakeHandlerName + chid + "ResultHandler", resultHandler)
         return ret
     }
 
-    inner class NoiseIoHandshake() : SimpleChannelInboundHandler<ByteBuf>() {
+    class NoiseIoHandshake(private val localKey: PrivKey, val role: Int, loggerString: String) : SimpleChannelInboundHandler<ByteBuf>() {
 
-        private val handshakestate: HandshakeState = HandshakeState(protocolName, role.get())
+        private val handshakestate: HandshakeState = HandshakeState(protocolName, role)
         private var loggerName: String
         private var logger2: Logger
 
@@ -123,9 +120,9 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
         private var instancePayloadLength = 0
 
         init {
-            val roleString = if (role.get() == HandshakeState.INITIATOR) "INIT" else "RESP"
+            val roleString = if (role == HandshakeState.INITIATOR) "INIT" else "RESP"
 //            loggerName = loggerNameParent + "." + this.hashCode().toString().substring(5)
-            loggerName = roleString + "|" + chid + "|" + loggerNameParent
+            loggerName = "$roleString|$loggerString"
             loggerName = loggerName.replace(".", "_")
 //            System.out.println("loggerName:"+loggerName)
 
@@ -147,7 +144,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
             channelActive(ctx)
 
-            if (role.get() == HandshakeState.RESPONDER && flagRemoteVerified && !flagRemoteVerifiedPassed) {
+            if (role == HandshakeState.RESPONDER && flagRemoteVerified && !flagRemoteVerifiedPassed) {
                 logger2.error("Responder verification of Remote peer id has failed")
                 ctx.fireUserEventTriggered(SecureChannelFailed(Exception("Responder verification of Remote peer id has failed")))
                 return
@@ -184,7 +181,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
             }
 
             // after reading messages and setting up state, write next message onto the wire
-            if (role.get() == HandshakeState.RESPONDER && handshakestate.action == HandshakeState.WRITE_MESSAGE) {
+            if (role == HandshakeState.RESPONDER && handshakestate.action == HandshakeState.WRITE_MESSAGE) {
                 sendNoiseStaticKeyAsPayload(ctx)
             } else if (handshakestate.action == HandshakeState.WRITE_MESSAGE) {
                 val sndmessage = ByteArray(65535)
@@ -222,7 +219,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
             // even though both the alice and bob parties can have the payload ready
             // the Noise protocol only permits alice to send a packet first
-            if (role.get() == HandshakeState.INITIATOR) {
+            if (role == HandshakeState.INITIATOR) {
                 sendNoiseStaticKeyAsPayload(ctx)
             }
         }
