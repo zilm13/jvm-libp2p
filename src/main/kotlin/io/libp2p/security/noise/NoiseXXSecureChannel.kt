@@ -102,7 +102,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 //                ctx.fireChannelActive()
             }
         }
-        ch.nettyChannel.pipeline().addLast(handshakeHandlerName + chid, NoiseIoHandshake(localKey, role.get().toInt(), "$chid|$loggerNameParent"))
+        ch.nettyChannel.pipeline().addLast(handshakeHandlerName + chid, NoiseIoHandshake(localKey, role.get(), "$chid|$loggerNameParent"))
         ch.nettyChannel.pipeline().addLast(handshakeHandlerName + chid + "ResultHandler", resultHandler)
         return ret
     }
@@ -121,10 +121,8 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
         init {
             val roleString = if (role == HandshakeState.INITIATOR) "INIT" else "RESP"
-//            loggerName = loggerNameParent + "." + this.hashCode().toString().substring(5)
             loggerName = "$roleString|$loggerString"
             loggerName = loggerName.replace(".", "_")
-//            System.out.println("loggerName:"+loggerName)
 
             logger2 = LogManager.getLogger(loggerName)
             Configurator.setLevel(loggerName, Level.DEBUG)
@@ -192,9 +190,9 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
             }
 
             if (handshakestate.action == HandshakeState.SPLIT && flagRemoteVerifiedPassed) {
-                cipherStatePair = handshakestate.split()
-                aliceSplit = cipherStatePair.sender
-                bobSplit = cipherStatePair.receiver
+                var cipherStatePair = handshakestate.split()
+                var aliceSplit = cipherStatePair.sender
+                var bobSplit = cipherStatePair.receiver
                 logger2.debug("Split complete")
 
                 // put alice and bob security sessions into the context and trigger the next action
@@ -305,8 +303,5 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
         private var activated = false
         private var flagRemoteVerified = false
         private var flagRemoteVerifiedPassed = false
-        private lateinit var aliceSplit: CipherState
-        private lateinit var bobSplit: CipherState
-        private lateinit var cipherStatePair: CipherStatePair
     }
 }
