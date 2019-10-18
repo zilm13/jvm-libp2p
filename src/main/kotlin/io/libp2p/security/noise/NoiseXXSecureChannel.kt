@@ -1,8 +1,6 @@
 package io.libp2p.security.noise
 
 import com.google.protobuf.ByteString
-import com.southernstorm.noise.protocol.CipherState
-import com.southernstorm.noise.protocol.CipherStatePair
 import com.southernstorm.noise.protocol.DHState
 import com.southernstorm.noise.protocol.HandshakeState
 import com.southernstorm.noise.protocol.Noise
@@ -20,6 +18,7 @@ import io.libp2p.etc.events.SecureChannelInitialized
 import io.libp2p.etc.types.toByteArray
 import io.libp2p.etc.types.toByteBuf
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.SimpleChannelInboundHandler
@@ -28,7 +27,7 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.apache.logging.log4j.core.config.Configurator
 import spipe.pb.Spipe
-import java.util.Arrays
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -90,9 +89,10 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
                         logger.debug("Reporting secure channel initialized")
                     }
                     is SecureChannelFailed -> {
+                        logger.debug("Failed connection exception:" + evt.exception)
                         ret.completeExceptionally(evt.exception)
 
-                        ctx.pipeline().remove(handshakeHandlerName + chid)
+//                        ctx.pipeline().remove(handshakeHandlerName + chid)
                         ctx.pipeline().remove(this)
 
                         logger.debug("Reporting secure channel failed")
@@ -107,13 +107,14 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
         return ret
     }
 
-    class NoiseIoHandshake(private val localKey: PrivKey, val role: Int, loggerString: String) : SimpleChannelInboundHandler<ByteBuf>() {
+    class NoiseIoHandshake(private val localKey: PrivKey, private val role: Int, loggerString: String) : SimpleChannelInboundHandler<ByteBuf>() {
 
-        private val handshakestate: HandshakeState = HandshakeState(protocolName, role)
         private var loggerName: String
         private var logger2: Logger
 
-        private var localNoiseState: DHState
+        private val handshakestate: HandshakeState = HandshakeState(protocolName, role)
+        private val localNoiseState: DHState = Noise.createDH("25519")
+
         private var sentNoiseKeyPayload = false
 
         private val instancePayload = ByteArray(65535)
@@ -131,8 +132,8 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
             // configure the localDHState with the private
             // which will automatically generate the corresponding public key
-            localNoiseState = Noise.createDH("25519")
             localNoiseState.setPrivateKey(localStaticPrivateKey25519, 0)
+
             handshakestate.localKeyPair.copyFrom(localNoiseState)
             handshakestate.start()
         }
@@ -140,9 +141,9 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
         override fun channelRead0(ctx: ChannelHandlerContext, msg1: ByteBuf) {
             val msg = msg1.toByteArray()
 
-            channelActive(ctx)
+            channelRegistered(ctx)
 
-            if (role == HandshakeState.RESPONDER && flagRemoteVerified && !flagRemoteVerifiedPassed) {
+            if (flagRemoteVerified && !flagRemoteVerifiedPassed) {
                 logger2.error("Responder verification of Remote peer id has failed")
                 ctx.fireUserEventTriggered(SecureChannelFailed(Exception("Responder verification of Remote peer id has failed")))
                 return
@@ -150,32 +151,35 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
             // we always read from the wire when it's the next action to take
             // capture any payloads
-            val payload = ByteArray(65535)
-            var payloadLength = 0
             if (handshakestate.action == HandshakeState.READ_MESSAGE) {
-                logger2.debug("Noise handshake READ_MESSAGE")
+                val payload = ByteArray(65535)
+                var payloadLength : Int
                 try {
-                    payloadLength = handshakestate.readMessage(msg, 0, msg.size, payload, 0)
+                    logger2.debug("Noise handshake READ_MESSAGE")
+                    val length = msg1.readShort().toInt()
+                    payloadLength = handshakestate.readMessage(msg, 2, length, payload, 0)
                 } catch (e: Exception) {
-                    logger2.debug("Exception e:" + e.toString())
+                    logger2.debug(loggerName + "Exception e:" + e.toString())
+                    e.printStackTrace(System.err)
                     ctx.fireUserEventTriggered(SecureChannelFailed(e))
                     return
                 }
-            }
+                if (payloadLength > 0 && instancePayloadLength == 0) {
+                    logger2.debug("Read payload")
+                    // currently, only allow storing a single payload for verification (this should maybe be changed to a queue)
+                    payload.copyInto(instancePayload, 0, 0, payloadLength)
+                    instancePayloadLength = payloadLength
+                }
 
-            val remotePublicKeyState: DHState = handshakestate.remotePublicKey
-            val remotePublicKey = ByteArray(remotePublicKeyState.publicKeyLength)
-            remotePublicKeyState.getPublicKey(remotePublicKey, 0)
+                val remotePublicKeyState: DHState = handshakestate.remotePublicKey
+                val remotePublicKey = ByteArray(remotePublicKeyState.publicKeyLength)
+                remotePublicKeyState.getPublicKey(remotePublicKey, 0)
 
-            if (payloadLength > 0 && instancePayloadLength == 0) {
-                // currently, only allow storing a single payload for verification (this should maybe be changed to a queue)
-                payload.copyInto(instancePayload, 0, 0, payloadLength)
-                instancePayloadLength = payloadLength
-            }
-
-            // verify the signature of the remote's noise static public key once the remote public key has been provided by the XX protocol
-            if (!Arrays.equals(remotePublicKey, ByteArray(remotePublicKeyState.publicKeyLength))) {
-                verifyPayload(ctx, instancePayload, instancePayloadLength, remotePublicKey)
+                // verify the signature of the remote's noise static public key once the remote public key has been provided by the XX protocol
+                if (!flagRemoteVerified && !Arrays.equals(remotePublicKey, ByteArray(remotePublicKeyState.publicKeyLength))) {
+                    var check = verifyPayload(ctx, instancePayload, instancePayloadLength, remotePublicKey)
+                    if (!check) return
+                }
             }
 
             // after reading messages and setting up state, write next message onto the wire
@@ -183,10 +187,12 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
                 sendNoiseStaticKeyAsPayload(ctx)
             } else if (handshakestate.action == HandshakeState.WRITE_MESSAGE) {
                 val sndmessage = ByteArray(65535)
-                val sndmessageLength: Int
                 logger2.debug("Noise handshake WRITE_MESSAGE")
-                sndmessageLength = handshakestate.writeMessage(sndmessage, 0, null, 0, 0)
-                ctx.writeAndFlush(sndmessage.copyOfRange(0, sndmessageLength).toByteBuf())
+                val sndmessageLength = handshakestate.writeMessage(sndmessage, 0, null, 0, 0)
+                val compositeBuf = Unpooled.wrappedBuffer(
+                        Unpooled.buffer().writeShort(sndmessageLength),
+                    Unpooled.wrappedBuffer(sndmessage.copyOfRange(0, sndmessageLength).toByteBuf()))
+                ctx.writeAndFlush(compositeBuf)
             }
 
             if (handshakestate.action == HandshakeState.SPLIT && flagRemoteVerifiedPassed) {
@@ -224,7 +230,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
         /**
          * Sends the next Noise message with a payload of the identities and signatures
-         * Currently does not include additional data in the payload.
+         * Currently does not include other data in the payload.
          */
         private fun sendNoiseStaticKeyAsPayload(ctx: ChannelHandlerContext) {
             // only send the Noise static key once
@@ -261,10 +267,15 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
                     noiseHandshakePayload.toByteArray().size
             )
 
-            logger2.debug("Sending signed Noise static public key as payload")
-            logger2.debug("Noise handshake WRITE_MESSAGE")
+            logger2.debug("Noise handshake w payload WRITE_MESSAGE")
             // put the message frame which also contains the payload onto the wire
-            ctx.writeAndFlush(msgBuffer.copyOfRange(0, msgLength).toByteBuf())
+
+            val compositeBuf = Unpooled.wrappedBuffer(
+                    Unpooled.buffer().writeShort(msgLength),
+                    Unpooled.wrappedBuffer(msgBuffer.copyOfRange(0, msgLength).toByteBuf()))
+            ctx.writeAndFlush(compositeBuf)
+
+//            ctx.writeAndFlush(msgBuffer.copyOfRange(0, msgLength).toByteBuf())
         }
 
         private fun verifyPayload(
@@ -272,7 +283,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
                 payload: ByteArray,
                 payloadLength: Int,
                 remotePublicKey: ByteArray
-        ) {
+        ): Boolean {
             logger2.debug("Verifying noise static key payload")
             flagRemoteVerified = true
 
@@ -287,12 +298,12 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
 
             if (flagRemoteVerifiedPassed) {
                 logger2.debug("Remote verification passed")
+                return true
             } else {
                 logger2.error("Remote verification failed")
                 ctx.fireUserEventTriggered(SecureChannelFailed(Exception("Responder verification of Remote peer id has failed")))
-                return
-//                ctx.fireChannelActive()
-                // throwing exception for early exit of protocol and for application to handle
+                ctx.channel().pipeline().remove(this)
+                return false;
             }
         }
 
