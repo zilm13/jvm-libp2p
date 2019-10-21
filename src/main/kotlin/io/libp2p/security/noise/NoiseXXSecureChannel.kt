@@ -92,7 +92,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
                         logger.debug("Failed connection exception:" + evt.exception)
                         ret.completeExceptionally(evt.exception)
 
-//                        ctx.pipeline().remove(handshakeHandlerName + chid)
+                        ctx.pipeline().remove(handshakeHandlerName + chid)
                         ctx.pipeline().remove(this)
 
                         logger.debug("Reporting secure channel failed")
