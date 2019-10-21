@@ -5,6 +5,8 @@ package io.libp2p.core.multistream
  */
 data class ProtocolMatcher(val mode: Mode, val name: String? = null, val predicate: ((String) -> Boolean)? = null) {
 
+    constructor(mode: Mode, name: String? = null) : this(mode, name, null)
+
     init {
         when (mode) {
             Mode.NEVER -> {
