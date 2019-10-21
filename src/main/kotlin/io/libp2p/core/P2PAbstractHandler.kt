@@ -15,6 +15,7 @@ interface P2PAbstractHandler<out TController> {
      */
     fun initChannel(ch: P2PAbstractChannel): CompletableFuture<out TController>
 
+    @JvmDefault
     fun toStreamHandler(): StreamHandler<TController> = object : StreamHandler<TController> {
         override fun handleStream(stream: Stream): CompletableFuture<out TController> {
             return initChannel(stream)
