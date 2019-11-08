@@ -27,6 +27,7 @@ public class TimeControllerImpl implements TimeController {
           Comparator.naturalOrder(), Comparator.comparing(OrderedTask::getOrder));
   long curTime;
   long timeShift;
+  private boolean executingImmediate = false;
 
   @Override
   public long getTime() {
@@ -69,6 +70,21 @@ public class TimeControllerImpl implements TimeController {
     }
 
     tasks.put(task.getTime(), new OrderedTask(task));
+
+    if (getTime() == task.getTime()) {
+      executeImmediateTasksNonRecursively();
+    }
+  }
+
+  private void executeImmediateTasksNonRecursively() {
+    if (!executingImmediate) {
+      try {
+        executingImmediate = true;
+        setTime(getTime());
+      } finally {
+        executingImmediate = false;
+      }
+    }
   }
 
   @Override
