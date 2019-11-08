@@ -1,15 +1,16 @@
 package io.libp2p.pubsub
 
-import io.libp2p.core.Connection
 import io.libp2p.core.PeerId
 import io.libp2p.core.Stream
 import io.libp2p.core.crypto.KEY_TYPE
 import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.security.SecureChannel
+import io.libp2p.etc.CONNECTION
 import io.libp2p.etc.SECURE_SESSION
 import io.libp2p.etc.types.lazyVar
 import io.libp2p.etc.util.netty.nettyInitializer
 import io.libp2p.pubsub.flood.FloodRouter
+import io.libp2p.tools.DummyChannel
 import io.libp2p.tools.TestChannel
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
@@ -48,7 +49,7 @@ class TestRouter(val name: String = "" + cnt.getAndIncrement()) {
         initiator: Boolean
     ): TestChannel {
 
-        val parentChannel = TestChannel("dummy-parent-channel", false, nettyInitializer {
+        val parentChannel = DummyChannel().also {
             it.attr(SECURE_SESSION).set(
                 SecureChannel.Session(
                     PeerId.fromPubKey(keyPair.second),
@@ -56,15 +57,14 @@ class TestRouter(val name: String = "" + cnt.getAndIncrement()) {
                     remoteRouter.keyPair.second
                 )
             )
-        })
-        val connection = Connection(parentChannel)
+        }
 
         return TestChannel(
             channelName,
             initiator,
             nettyInitializer { ch ->
                 wireLogs?.also { ch.pipeline().addFirst(LoggingHandler(channelName, it)) }
-                val stream1 = Stream(ch, connection)
+                val stream1 = Stream(ch, parentChannel.attr(CONNECTION).get())
                 router.addPeerWithDebugHandler(stream1, pubsubLogs?.let { LoggingHandler(channelName, it) })
             }
         ).also {
