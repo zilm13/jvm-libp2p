@@ -5,6 +5,8 @@ import io.libp2p.core.PeerId
 import io.libp2p.core.Stream
 import io.libp2p.core.crypto.KEY_TYPE
 import io.libp2p.core.crypto.generateKeyPair
+import io.libp2p.core.pubsub.RESULT_VALID
+import io.libp2p.core.pubsub.createPubsubApi
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.etc.CONNECTION
 import io.libp2p.etc.SECURE_SESSION
@@ -18,6 +20,7 @@ import io.netty.channel.ChannelPromise
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import pubsub.pb.Rpc
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledExecutorService
@@ -29,8 +32,9 @@ val idCnt = AtomicInteger()
 class TestRouter(val name: String = "" + cnt.getAndIncrement()) {
 
     val inboundMessages = LinkedBlockingQueue<Rpc.Message>()
-    var routerHandler: (Rpc.Message) -> Unit = {
+    var routerHandler: (Rpc.Message) -> CompletableFuture<Boolean> = {
         inboundMessages += it
+        RESULT_VALID
     }
 
     var testExecutor: ScheduledExecutorService by lazyVar { Executors.newSingleThreadScheduledExecutor() }
@@ -42,6 +46,8 @@ class TestRouter(val name: String = "" + cnt.getAndIncrement()) {
             it.executor = testExecutor
         }
     }
+    var api by lazyVar { createPubsubApi(router) }
+
     var keyPair = generateKeyPair(KEY_TYPE.ECDSA)
 
     private fun newChannel(
