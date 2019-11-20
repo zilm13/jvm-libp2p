@@ -3,11 +3,13 @@ package io.libp2p.tools
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import io.libp2p.etc.IS_INITIATOR
 import io.libp2p.etc.types.lazyVar
+import io.libp2p.etc.types.toVoidCompletableFuture
 import io.libp2p.etc.util.netty.nettyInitializer
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelId
 import io.netty.channel.embedded.EmbeddedChannel
 import org.apache.logging.log4j.LogManager
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
@@ -69,9 +71,11 @@ class TestChannel(id: String = "test", initiator: Boolean, vararg handlers: Chan
 
     class TestConnection(val ch1: TestChannel, val ch2: TestChannel) {
         fun getMessageCount() = ch1.sentMsgCount.get() + ch2.sentMsgCount.get()
-        fun disconnect() {
-            ch1.close()
-            ch2.close()
+        fun disconnect(): CompletableFuture<Unit> {
+            return CompletableFuture.allOf(
+                ch1.close().toVoidCompletableFuture(),
+                ch2.close().toVoidCompletableFuture()
+            ).thenApply { Unit }
         }
     }
 }

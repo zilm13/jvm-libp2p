@@ -13,6 +13,8 @@ import io.libp2p.etc.util.netty.nettyInitializer
 import io.libp2p.pubsub.flood.FloodRouter
 import io.libp2p.tools.DummyChannel
 import io.libp2p.tools.TestChannel
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelPromise
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import pubsub.pb.Rpc
@@ -60,6 +62,17 @@ class TestRouter(val name: String = "" + cnt.getAndIncrement()) {
             )
         }
 
+        class MyLogHandler(level: LogLevel) : LoggingHandler(channelName, level) {
+            override fun write(ctx: ChannelHandlerContext, msg: Any?, promise: ChannelPromise?) {
+                msg as Rpc.RPC
+                if (ctx.channel().toString().contains("68=>72")
+                    && msg.publishCount > 0) {
+                    println("!!!")
+                }
+                super.write(ctx, msg, promise)
+            }
+        }
+
         return TestChannel(
             channelName,
             initiator,
@@ -68,7 +81,9 @@ class TestRouter(val name: String = "" + cnt.getAndIncrement()) {
                 val connection = Connection(parentChannel)
                 ch.attr(CONNECTION).set(connection)
                 val stream1 = Stream(ch, connection)
-                router.addPeerWithDebugHandler(stream1, pubsubLogs?.let { LoggingHandler(channelName, it) })
+                router.addPeerWithDebugHandler(stream1, pubsubLogs?.let {
+                    MyLogHandler(it)
+                })
             }
         ).also {
             it.executor = testExecutor

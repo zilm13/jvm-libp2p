@@ -34,7 +34,7 @@ public class ControlledExecutorServiceImpl implements ControlledExecutorService 
     }
 
     public void execute() {
-      ControlledExecutorServiceImpl.this.execute(() -> {
+      delegateExecutor.execute(() -> {
         try {
           V res = callable.call();
           future.delegate.complete(res);
@@ -103,6 +103,7 @@ public class ControlledExecutorServiceImpl implements ControlledExecutorService 
   }
 
   private final Executor delegateExecutor;
+  private final boolean immediateExecute = false;
   private TimeController timeController;
 
   public ControlledExecutorServiceImpl() {
@@ -186,7 +187,11 @@ public class ControlledExecutorServiceImpl implements ControlledExecutorService 
 
   @Override
   public void execute(Runnable command) {
-    delegateExecutor.execute(command);
+    if (immediateExecute) {
+      delegateExecutor.execute(command);
+    } else {
+      schedule(command, 0, TimeUnit.MILLISECONDS);
+    }
   }
 
   @Override
