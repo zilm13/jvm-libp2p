@@ -110,9 +110,17 @@ public class ControlledExecutorServiceImpl implements ControlledExecutorService 
     this(Runnable::run);  // default immediate executor
   }
 
+  public ControlledExecutorServiceImpl(TimeController timeController) {
+    this(Runnable::run, timeController);
+  }
 
   public ControlledExecutorServiceImpl(Executor delegateExecutor) {
+    this(delegateExecutor, null);
+  }
+
+  public ControlledExecutorServiceImpl(Executor delegateExecutor, TimeController timeController) {
     this.delegateExecutor = delegateExecutor;
+    this.timeController = timeController;
   }
 
   @Override

@@ -20,6 +20,9 @@ import pubsub.pb.Rpc
 import java.util.Collections.singletonList
 import java.util.Random
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicLong
+
+private val id = AtomicLong(0)
 
 /**
  * Implements common logic for pubsub routers
@@ -29,6 +32,7 @@ abstract class AbstractRouter : P2PServiceSemiDuplex(), PubsubRouter, PubsubRout
 
     override var curTime: () -> Long by lazyVar { { System.currentTimeMillis() } }
     override var random by lazyVar { Random() }
+    override val name = id.getAndIncrement().toString()
 
     val peerTopics = MultiSet<PeerHandler, String>()
     private var msgHandler: (Rpc.Message) -> CompletableFuture<Boolean> = { RESULT_VALID }
@@ -39,6 +43,7 @@ abstract class AbstractRouter : P2PServiceSemiDuplex(), PubsubRouter, PubsubRout
     val pendingRpcParts = linkedMapOf<PeerHandler, MutableList<Rpc.RPC>>()
     private var debugHandler: ChannelHandler? = null
     private val pendingMessagePromises = MultiSet<PeerHandler, CompletableFuture<Unit>>()
+    var serialize = true
 
     protected fun getMessageId(msg: Rpc.Message): String = msg.from.toByteArray().toHex() + msg.seqno.toByteArray().toHex()
 
@@ -113,10 +118,12 @@ abstract class AbstractRouter : P2PServiceSemiDuplex(), PubsubRouter, PubsubRout
 
     override fun initChannel(streamHandler: StreamHandler) {
         with(streamHandler.stream.nettyChannel.pipeline()) {
-            addLast(ProtobufVarint32FrameDecoder())
-            addLast(ProtobufVarint32LengthFieldPrepender())
-            addLast(ProtobufDecoder(Rpc.RPC.getDefaultInstance()))
-            addLast(ProtobufEncoder())
+            if (serialize) {
+                addLast(ProtobufVarint32FrameDecoder())
+                addLast(ProtobufVarint32LengthFieldPrepender())
+                addLast(ProtobufDecoder(Rpc.RPC.getDefaultInstance()))
+                addLast(ProtobufEncoder())
+            }
             debugHandler?.also { addLast(it) }
             addLast(streamHandler)
         }

@@ -8,6 +8,7 @@ import io.libp2p.core.crypto.KEY_TYPE
 import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.etc.CONNECTION
+import io.libp2p.etc.IS_INITIATOR
 import io.libp2p.etc.SECURE_SESSION
 import io.libp2p.etc.types.forward
 import io.libp2p.etc.types.lazyVar
@@ -16,7 +17,6 @@ import io.libp2p.simulate.AbstractSimPeer
 import io.libp2p.simulate.SimConnection
 import io.libp2p.simulate.SimPeer
 import io.libp2p.tools.DummyChannel
-import io.libp2p.tools.TestChannel
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import java.util.concurrent.CompletableFuture
@@ -25,11 +25,11 @@ import java.util.concurrent.ScheduledExecutorService
 
 abstract class StreamSimPeer<TProtocolController>(
     val isSemiDuplex: Boolean = false
-) : AbstractSimPeer() {
+) : AbstractSimPeer(), StreamHandler<TProtocolController> {
 
     val protocolController: CompletableFuture<TProtocolController> = CompletableFuture()
 
-    var testExecutor: ScheduledExecutorService by lazyVar { Executors.newSingleThreadScheduledExecutor() }
+    var simExecutor: ScheduledExecutorService by lazyVar { Executors.newSingleThreadScheduledExecutor() }
     var keyPair = generateKeyPair(KEY_TYPE.ECDSA)
 
     override fun connectImpl(other: SimPeer): CompletableFuture<SimConnection> {
@@ -47,17 +47,17 @@ abstract class StreamSimPeer<TProtocolController>(
     private fun connect(
         another: StreamSimPeer<*>,
         wireLogs: LogLevel? = null
-    ): TestChannel.TestConnection {
+    ): StreamSimChannel.Connection {
 
         val thisChannel = newChannel("$name=>${another.name}", another, wireLogs, true)
         val anotherChannel = another.newChannel("${another.name}=>$name", this, wireLogs, false)
-        return TestChannel.interConnect(thisChannel, anotherChannel)
+        return StreamSimChannel.interConnect(thisChannel, anotherChannel)
     }
 
     private fun connectSemiDuplex(
         another: StreamSimPeer<*>,
         wireLogs: LogLevel? = null
-    ): Pair<TestChannel.TestConnection, TestChannel.TestConnection> {
+    ): Pair<StreamSimChannel.Connection, StreamSimChannel.Connection> {
         return connect(another, wireLogs) to
             another.connect(this, wireLogs)
     }
@@ -67,7 +67,7 @@ abstract class StreamSimPeer<TProtocolController>(
         remote: StreamSimPeer<*>,
         wireLogs: LogLevel? = null,
         initiator: Boolean
-    ): TestChannel {
+    ): StreamSimChannel {
 
         val parentChannel = DummyChannel().also {
             it.attr(SECURE_SESSION).set(
@@ -77,23 +77,21 @@ abstract class StreamSimPeer<TProtocolController>(
                     remote.keyPair.second
                 )
             )
+            it.attr(IS_INITIATOR).set(initiator)
         }
 
-        return TestChannel(
+        return StreamSimChannel(
             channelName,
-            initiator,
             nettyInitializer { ch ->
+                ch.attr(IS_INITIATOR).set(initiator)
                 wireLogs?.also { ch.pipeline().addFirst(LoggingHandler(channelName, it)) }
                 val connection = Connection(parentChannel)
                 ch.attr(CONNECTION).set(connection)
                 val stream = Stream(ch, connection)
-                getStreamHandler().handleStream(stream).forward(protocolController)
+                handleStream(stream).forward(protocolController)
             }
         ).also {
-            it.executor = testExecutor
+            it.executor = simExecutor
         }
     }
-
-    abstract fun getStreamHandler(): StreamHandler<TProtocolController>
-
 }
