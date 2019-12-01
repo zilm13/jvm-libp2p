@@ -1,8 +1,5 @@
 package io.libp2p.tools
 
-import org.junit.jupiter.api.Test
-import kotlin.math.sqrt
-
 fun msec(info: String = "Starting...", f: () -> Unit) {
     val s = System.nanoTime()
     try {
@@ -22,14 +19,4 @@ fun msec(info: String = "Starting...", f: () -> Unit) {
     }
 }
 
-class A {
-    @Test
-    fun aaa() {
-//    print("aaa ")
-        msec("Creating routers...") {
-            var d = Double.MAX_VALUE
-            for (i in 0..1000000000) d = sqrt(d)
-        }
-        //println("bbb")
-    }
-}
+operator fun <T> List<T>.get(subIndexes: IntRange) =  subList(subIndexes.first, subIndexes.last + 1)

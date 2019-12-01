@@ -16,6 +16,8 @@ import io.libp2p.etc.util.netty.nettyInitializer
 import io.libp2p.simulate.AbstractSimPeer
 import io.libp2p.simulate.SimConnection
 import io.libp2p.simulate.SimPeer
+import io.libp2p.simulate.util.GeneralSizeEstimator
+import io.libp2p.simulate.util.MessageDelayer
 import io.libp2p.tools.DummyChannel
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
@@ -31,15 +33,18 @@ abstract class StreamSimPeer<TProtocolController>(
 
     var simExecutor: ScheduledExecutorService by lazyVar { Executors.newSingleThreadScheduledExecutor() }
     var keyPair = generateKeyPair(KEY_TYPE.ECDSA)
+    var msgSizeEstimator = GeneralSizeEstimator
+    var msgDelayer: MessageDelayer = { 0L }
+    var wireLogs: LogLevel? = null
 
     override fun connectImpl(other: SimPeer): CompletableFuture<SimConnection> {
         other as StreamSimPeer<*>
 
         val simConnection = if (isSemiDuplex) {
-            val connections = connectSemiDuplex(other)
+            val connections = connectSemiDuplex(other, wireLogs)
             StreamSimConnection(this, other, connections.first, connections.second)
         } else {
-            StreamSimConnection(this, other, connect(other))
+            StreamSimConnection(this, other, connect(other, wireLogs))
         }
         return CompletableFuture.completedFuture(simConnection)
     }
@@ -92,6 +97,8 @@ abstract class StreamSimPeer<TProtocolController>(
             }
         ).also {
             it.executor = simExecutor
+            it.msgSizeEstimator = msgSizeEstimator
+            it.msgDelayer = msgDelayer
         }
     }
 }

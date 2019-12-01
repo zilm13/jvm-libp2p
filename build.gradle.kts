@@ -50,6 +50,7 @@ dependencies {
     compile("javax.xml.bind:jaxb-api:2.3.1")
 
     testCompile("org.jgrapht:jgrapht-core:1.3.1")
+    testCompile("org.apache.commons:commons-math3:3.6.1")
     testCompile("org.junit.jupiter:junit-jupiter-api:5.4.2")
     testCompile("org.junit.jupiter:junit-jupiter-params:5.4.2")
     testRuntime("org.junit.jupiter:junit-jupiter-engine:5.4.2")

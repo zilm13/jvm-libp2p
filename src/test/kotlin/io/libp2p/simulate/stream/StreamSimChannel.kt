@@ -3,6 +3,7 @@ package io.libp2p.simulate.stream
 import io.libp2p.etc.types.lazyVar
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.libp2p.simulate.util.GeneralSizeEstimator
+import io.libp2p.simulate.util.MessageDelayer
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelId
 import io.netty.channel.embedded.EmbeddedChannel
@@ -22,7 +23,7 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
     var link: StreamSimChannel? = null
     var executor: ScheduledExecutorService by lazyVar { Executors.newSingleThreadScheduledExecutor() }
     var msgSizeEstimator = GeneralSizeEstimator
-    var delayCalc: (Int) -> Long = { 0L }
+    var msgDelayer: MessageDelayer = { 0L }
     val msgCount = AtomicLong()
     val totSize = AtomicLong()
 
@@ -43,7 +44,7 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
 
     private fun send(msg: Any) {
         val size = msgSizeEstimator(msg)
-        val delay = delayCalc(size)
+        val delay = msgDelayer(size)
 
         val sendNow: () -> Unit = {
             link!!.writeInbound(msg)

@@ -1,13 +1,16 @@
 package io.libp2p.simulate.main
 
 import io.libp2p.core.pubsub.MessageApi
-import io.libp2p.core.pubsub.Subscriber
+import io.libp2p.core.pubsub.RESULT_INVALID
+import io.libp2p.core.pubsub.RESULT_VALID
 import io.libp2p.core.pubsub.Topic
+import io.libp2p.core.pubsub.Validator
 import io.libp2p.etc.types.toByteBuf
 import io.libp2p.pubsub.gossip.GossipRouter
 import io.libp2p.simulate.SimConnection
 import io.libp2p.simulate.gossip.GossipSimPeer
 import io.libp2p.simulate.topology.RandomNPeers
+import io.libp2p.tools.get
 import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl
 import io.libp2p.tools.schedulers.TimeControllerImpl
 import org.junit.jupiter.api.Test
@@ -18,12 +21,17 @@ import java.util.Random
 class Test1 {
 
     val topic = Topic("Topic-1")
+    val AvrgBlockMessageSize = 32 * 1024
 
     inner class TestGossip(
         val peer: GossipSimPeer
     ) {
 
-        val subscription = peer.api.subscribe(Subscriber { onNewMsg(it) }, topic)
+        var validationResult = RESULT_VALID
+        val subscription = peer.api.subscribe(Validator {
+            onNewMsg(it)
+            validationResult
+        }, topic)
         var lastMsg: MessageApi? = null
         var lastMsgTime = 0L
 
@@ -51,25 +59,30 @@ class Test1 {
     fun test1() {
 
         val timeController = TimeControllerImpl()
-        val commonRnd = Random(2)
+        val commonRnd = Random(3)
 
         println("Creating peers")
         val peers = (0..9999).map {
             GossipSimPeer().apply {
                 routerInstance = GossipRouter().apply {
-                    withDConstants(6, 6, 6, 100)
-                    serialize = true
+                    withDConstants(4, 4, 4, 100)
+                    serialize = false
                     curTime = timeController::getTime
                     random = commonRnd
                 }
-//                if (name == "133") {
+//                api.subscribe(Validator { RESULT_INVALID }, topic)
+//                if (name == "1") {
 //                    pubsubLogs = LogLevel.ERROR
+//                    wireLogs = LogLevel.ERROR
 //                }
                 simExecutor = ControlledExecutorServiceImpl(timeController)
+                msgSizeEstimator = GossipSimPeer.rawPubSubMsgSizeEstimator(AvrgBlockMessageSize)
+                msgDelayer = { 1 }
             }
         }
         println("Creating test peers")
         val testPeers = peers.map { TestGossip(it) }
+        testPeers[1..5000].forEach { it.validationResult = RESULT_INVALID }
 
         val topology = RandomNPeers(10).apply {
             random = commonRnd
@@ -78,7 +91,7 @@ class Test1 {
         val connections = topology.connect(peers)
 
         println("Some warm up")
-        timeController.addTime(Duration.ofMinutes(1))
+        timeController.addTime(Duration.ofSeconds(5))
 
         var lastNS = calcNetStats(connections)
         println("Initial stat: $lastNS")
@@ -88,13 +101,13 @@ class Test1 {
             val sentTime = timeController.time
             testPeers[i].peer.apiPublisher.publish("Message-$i".toByteArray().toByteBuf(), topic)
 
-//            timeController.addTime(Duration.ofMillis(1))
+            timeController.addTime(Duration.ofMillis(500))
             val ns1 = calcNetStats(connections)
             println("Net stats-1: ${ns1 - lastNS}")
             val gs1 = calcGossipStats(testPeers - testPeers[i], sentTime)
             println("Gossip-1: $gs1")
 
-            timeController.addTime(Duration.ofMinutes(1))
+            timeController.addTime(Duration.ofSeconds(12))
 
             val ns = calcNetStats(connections)
             val nsDiff = ns - lastNS
