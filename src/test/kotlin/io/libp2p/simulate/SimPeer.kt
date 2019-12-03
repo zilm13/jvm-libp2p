@@ -25,11 +25,16 @@ abstract class AbstractSimPeer : SimPeer {
     override val connections: MutableList<SimConnection> = Collections.synchronizedList(ArrayList())
 
     override fun connect(other: SimPeer): CompletableFuture<SimConnection> {
-        return connectImpl(other).thenApply {conn ->
-                connections += conn
-                conn.closed.thenAccept { connections -= conn }
-                conn
+        return connectImpl(other).thenApply { conn ->
+            val otherAbs = other as? AbstractSimPeer
+            connections += conn
+            otherAbs?.connections?.add(conn)
+            conn.closed.thenAccept {
+                connections -= conn
+                otherAbs?.connections?.remove(conn)
             }
+            conn
+        }
     }
 
     override fun setThroughput(througput: RandomValue): Unit = TODO()

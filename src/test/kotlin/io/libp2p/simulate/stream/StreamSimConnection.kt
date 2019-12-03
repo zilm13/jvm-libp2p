@@ -4,6 +4,7 @@ import io.libp2p.etc.types.forward
 import io.libp2p.simulate.ConnectionStat
 import io.libp2p.simulate.RandomValue
 import io.libp2p.simulate.SimConnection
+import io.libp2p.simulate.stats.StatsFactory
 import java.util.concurrent.CompletableFuture
 
 class StreamSimConnection(
@@ -12,6 +13,13 @@ class StreamSimConnection(
     val dialerConnection: StreamSimChannel.Connection,
     var listenerConnection: StreamSimChannel.Connection? = null
 ) : SimConnection {
+
+    init {
+        dialerConnection.ch1.msgSizeHandler = { dialerStatsS.addValue(it.toDouble()) }
+        dialerConnection.ch2.msgSizeHandler = { listenerStatsS.addValue(it.toDouble()) }
+        listenerConnection?.ch1?.msgSizeHandler = { listenerStatsS.addValue(it.toDouble()) }
+        listenerConnection?.ch2?.msgSizeHandler = { dialerStatsS.addValue(it.toDouble()) }
+    }
 
     override val closed = CompletableFuture<Unit>()
 
@@ -23,14 +31,10 @@ class StreamSimConnection(
             .forward(closed)
     }
 
-    override val dialerStat: ConnectionStat
-        get() = ConnectionStat(
-            dialerConnection.ch1.msgCount.get() + (listenerConnection?.ch2?.msgCount?.get() ?: 0),
-            dialerConnection.ch1.totSize.get() + (listenerConnection?.ch2?.totSize?.get() ?: 0))
-    override val listenerStat: ConnectionStat
-        get() = ConnectionStat(
-            dialerConnection.ch2.msgCount.get() + (listenerConnection?.ch1?.msgCount?.get() ?: 0),
-            dialerConnection.ch2.totSize.get() + (listenerConnection?.ch1?.totSize?.get() ?: 0))
+    val dialerStatsS = StatsFactory.DEFAULT.createStats()
+    val listenerStatsS = StatsFactory.DEFAULT.createStats()
+    override val dialerStat = ConnectionStat(dialerStatsS)
+    override val listenerStat = ConnectionStat(listenerStatsS)
 
     override fun setLatency(latency: RandomValue) {
         super.setLatency(latency)

@@ -12,7 +12,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 
 class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
     EmbeddedChannel(
@@ -24,8 +23,7 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
     var executor: ScheduledExecutorService by lazyVar { Executors.newSingleThreadScheduledExecutor() }
     var msgSizeEstimator = GeneralSizeEstimator
     var msgDelayer: MessageDelayer = { 0L }
-    val msgCount = AtomicLong()
-    val totSize = AtomicLong()
+    var msgSizeHandler: (Int) -> Unit = {}
 
     @Synchronized
     fun connect(other: StreamSimChannel) {
@@ -48,8 +46,7 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
 
         val sendNow: () -> Unit = {
             link!!.writeInbound(msg)
-            msgCount.incrementAndGet()
-            totSize.addAndGet(size.toLong())
+            msgSizeHandler(size)
         }
         if (delay > 0) {
             link!!.executor.schedule(sendNow, delay, TimeUnit.MILLISECONDS)

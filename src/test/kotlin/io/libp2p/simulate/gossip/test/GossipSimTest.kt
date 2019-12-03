@@ -1,8 +1,9 @@
-package io.libp2p.simulate.gossip
+package io.libp2p.simulate.gossip.test
 
 import io.libp2p.core.pubsub.Topic
 import io.libp2p.etc.types.toByteBuf
 import io.libp2p.pubsub.gossip.GossipRouter
+import io.libp2p.simulate.gossip.GossipSimPeer
 import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl
 import io.libp2p.tools.schedulers.TimeControllerImpl
 import io.netty.handler.logging.LogLevel
@@ -17,7 +18,7 @@ class GossipSimTest {
         val timeController = TimeControllerImpl()
 
         val createPeer = {
-            val peer = GossipSimPeer()
+            val peer = GossipSimPeer(Topic("aaa"))
             peer.routerInstance = GossipRouter().also { it.serialize = true }
             peer.pubsubLogs = LogLevel.ERROR
             peer.simExecutor = ControlledExecutorServiceImpl(timeController)

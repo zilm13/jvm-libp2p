@@ -1,5 +1,7 @@
 package io.libp2p.simulate
 
+import io.libp2p.simulate.stats.StatsFactory
+import io.libp2p.simulate.stats.WritableStats
 import java.util.concurrent.CompletableFuture
 
 interface SimConnection {
@@ -18,6 +20,6 @@ interface SimConnection {
 }
 
 data class ConnectionStat(
-    val msgCount: Long = 0L,
-    val msgSize: Long = 0L
+    val msgSize: WritableStats = StatsFactory.DUMMY,
+    val msgLatency: WritableStats = StatsFactory.DUMMY
 )
