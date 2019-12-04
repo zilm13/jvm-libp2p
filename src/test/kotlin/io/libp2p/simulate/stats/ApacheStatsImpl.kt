@@ -1,5 +1,6 @@
 package io.libp2p.simulate.stats
 
+import io.libp2p.tools.smartRound
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics
 
@@ -42,8 +43,8 @@ data class DescriptiveStatsImpl(
 
     override fun toString(): String {
         return "" + getCount() + ":" +
-                getDescriptiveStatistics().min + "/" +
-                getDescriptiveStatistics().getPercentile(50.0) + "/" +
-                getDescriptiveStatistics().max
+                getDescriptiveStatistics().min.smartRound() + "/" +
+                getDescriptiveStatistics().getPercentile(50.0).smartRound() + "/" +
+                getDescriptiveStatistics().max.smartRound()
     }
 }

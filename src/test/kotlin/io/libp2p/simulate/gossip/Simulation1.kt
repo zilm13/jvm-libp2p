@@ -9,9 +9,15 @@ import io.libp2p.simulate.Topology
 import io.libp2p.simulate.stats.StatsFactory
 import io.libp2p.simulate.stats.WritableStats
 import io.libp2p.simulate.topology.RandomNPeers
+import io.libp2p.tools.formatTable
 import io.libp2p.tools.get
+import io.libp2p.tools.millis
 import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl
 import io.libp2p.tools.schedulers.TimeControllerImpl
+import io.libp2p.tools.seconds
+import io.libp2p.tools.setKeys
+import io.libp2p.tools.smartRound
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.Random
@@ -35,16 +41,19 @@ class Simulation1 {
         val gossipD: Int = 6,
         val gossipDLow: Int = 3,
         val gossipDHigh: Int = 12,
-        val gossipDGossip: Int = 6,
+        val gossipDLazy: Int = 6,
+        val gossipAdvertise:Int = 3,
+        val gossipHistory: Int = 5,
+        val gossipHeartbeat: Duration = 1.seconds,
 
         val topology: Topology = RandomNPeers(peerConnections),
         val latency: Long = 1L
     )
 
     data class SimOptions(
-        val warmUpDelay: Duration = Duration.ofSeconds(5),
-        val zeroHeartbeatsDelay: Duration = Duration.ofMillis(500),
-        val manyHeartbeatsDelay: Duration = Duration.ofSeconds(30),
+        val warmUpDelay: Duration = 5.seconds,
+        val zeroHeartbeatsDelay: Duration = 500.millis,
+        val manyHeartbeatsDelay: Duration = 30.seconds,
         val generatedNetworksCount: Int = 1,
         val sentMessageCount: Int = 10,
         val startRandomSeed: Long = 0
@@ -55,50 +64,79 @@ class Simulation1 {
         val trafficPerMessage: WritableStats = StatsFactory.DEFAULT.createStats(),
         val deliveredPart: WritableStats = StatsFactory.DEFAULT.createStats(),
         val deliverDelay: WritableStats = StatsFactory.DEFAULT.createStats()
-    )
+    ) {
+        fun getData() = mapOf(
+            "msgCnt" to packetCountPerMessage.getStatisticalSummary().max,
+            "traffic" to trafficPerMessage.getStatisticalSummary().max,
+            "delivered%" to deliveredPart.getStatisticalSummary().mean,
+            "delay(50%)" to deliverDelay.getDescriptiveStatistics().getPercentile(50.0),
+            "delay(95%)" to deliverDelay.getDescriptiveStatistics().getPercentile(95.0),
+            "delay(max)" to deliverDelay.getDescriptiveStatistics().max
+        )
+    }
 
     data class SimDetailedResult (
         val zeroHeartbeats: SimResult = SimResult(),
         val manyHeartbeats: SimResult = SimResult()
-    )
+    ) {
+        fun getData() =
+            zeroHeartbeats.getData().setKeys { "0-$it" } +
+            manyHeartbeats.getData().setKeys { "N-$it" }
+    }
 
+    @Disabled
     @Test
     fun test1() {
         val peerConnections = 20
-        val ress = mutableListOf<SimDetailedResult>()
-        for (badPeers in arrayOf(0, 5000, 6000, 7000, 8000, 9000, 9300, 9500, 9600, 9700)) {
-            val res = sim(
-                SimConfig(
-                    totalPeers = 10000,
-                    badPeers = badPeers,
-                    peerConnections = peerConnections,
+        val totalPeers = 10000
+        val cfgs = sequence {
+            for (badPeers in arrayOf(0.0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.93, 0.95, 0.97)) {
+                yield(
+                    SimConfig(
+                        totalPeers = totalPeers,
+                        badPeers = (badPeers * totalPeers).toInt(),
+                        peerConnections = peerConnections,
 
-                    gossipD = 6,
-                    gossipDLow = 3,
-                    gossipDHigh = 12,
-                    gossipDGossip = 15,
+                        gossipD = 6,
+                        gossipDLow = 5,
+                        gossipDHigh = 7,
+                        gossipDLazy = 6,
 
-                    topology = RandomNPeers(peerConnections),
-                    latency = 1L
-                ),
-                SimOptions(
-                    generatedNetworksCount = 10,
-                    sentMessageCount = 10,
-                    startRandomSeed = 0
+                        topology = RandomNPeers(peerConnections),
+                        latency = 1L
+                    )
                 )
-            )
-            println("Complete: $res")
-            ress += res
+            }
         }
+        val opt = SimOptions(
+            generatedNetworksCount = 10,
+            sentMessageCount = 5,
+            startRandomSeed = 0
+        )
+
+        sim(cfgs, opt)
+    }
+
+    fun sim(cfg: Sequence<SimConfig>, opt: SimOptions): List<SimDetailedResult> {
+        val res = mutableListOf<SimDetailedResult>()
+        for (config in cfg) {
+            println("Starting sim: \n\t$config\n\t$opt")
+            res += sim(config, opt)
+            println("Complete: ${res.last()}")
+        }
+
         println("Results: ")
         println("==============")
-        ress.forEachIndexed { i, res ->
-            println("$i: $res")
-        }
-    }
-    fun sim(cfg: SimConfig, opt: SimOptions): SimDetailedResult {
 
-        println("Starting sim: \n\t$cfg\n\t$opt")
+        val headers = res[0].getData().keys.joinToString("\t")
+        val data = res.map { it.getData().values.map { it.smartRound() }.joinToString("\t") }.joinToString("\n")
+        val table = (headers + "\n" + data).formatTable(true)
+        println(table)
+
+        return res
+    }
+
+    fun sim(cfg: SimConfig, opt: SimOptions): SimDetailedResult {
 
         val ret = SimDetailedResult()
         for (n in 0 until opt.generatedNetworksCount) {
@@ -109,7 +147,10 @@ class Simulation1 {
             val peers = (0 until cfg.totalPeers).map {
                 GossipSimPeer(Topic).apply {
                     routerInstance = GossipRouter().apply {
-                        withDConstants(cfg.gossipD, cfg.gossipDLow, cfg.gossipDHigh, cfg.gossipDGossip)
+                        withDConstants(cfg.gossipD, cfg.gossipDLow, cfg.gossipDHigh, cfg.gossipDLazy)
+                        gossipSize = cfg.gossipAdvertise
+                        gossipHistoryLength = cfg.gossipHistory
+                        heartbeatInterval = cfg.gossipHeartbeat
                         serialize = false
                         curTime = timeController::getTime
                         random = commonRnd
