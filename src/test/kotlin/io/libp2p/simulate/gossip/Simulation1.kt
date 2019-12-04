@@ -86,7 +86,38 @@ class Simulation1 {
 
     @Disabled
     @Test
-    fun test1() {
+    fun testResultStabilityAgainstNetworkSize() {
+        val peerConnections = 20
+        val cfgs = sequence {
+            for (totalPeers in arrayOf(1000, 5000, 10000, 20000, 30000))
+                yield(
+                    SimConfig(
+                        totalPeers = totalPeers,
+                        badPeers = (0.9 * totalPeers).toInt(),
+                        peerConnections = peerConnections,
+
+                        gossipD = 6,
+                        gossipDLow = 5,
+                        gossipDHigh = 7,
+                        gossipDLazy = 6,
+
+                        topology = RandomNPeers(peerConnections),
+                        latency = 1L
+                    )
+                )
+        }
+        val opt = SimOptions(
+            generatedNetworksCount = 50,
+            sentMessageCount = 3,
+            startRandomSeed = 2
+        )
+
+        sim(cfgs, opt)
+    }
+
+    @Disabled
+    @Test
+    fun testBFT() {
         val peerConnections = 20
         val totalPeers = 10000
         val cfgs = sequence {
