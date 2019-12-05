@@ -121,7 +121,7 @@ class Simulation1 {
         val peerConnections = 20
         val totalPeers = 10000
         val cfgs = sequence {
-            for (badPeers in arrayOf(0.0, 0.5, 0.6, 0.7, 0.8, 0.9, 0.93, 0.95, 0.97)) {
+            for (badPeers in arrayOf(0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.93, 0.95, 0.97)) {
                 yield(
                     SimConfig(
                         totalPeers = totalPeers,
@@ -132,6 +132,37 @@ class Simulation1 {
                         gossipDLow = 5,
                         gossipDHigh = 7,
                         gossipDLazy = 6,
+
+                        topology = RandomNPeers(peerConnections),
+                        latency = 1L
+                    )
+                )
+            }
+        }
+        val opt = SimOptions(
+            generatedNetworksCount = 10,
+            sentMessageCount = 5,
+            startRandomSeed = 0
+        )
+
+        sim(cfgs, opt)
+    }
+
+    @Disabled
+    @Test
+    fun testBFTOfPeerConnections() {
+        val cfgs = sequence {
+            for (peerConnections in arrayOf(6, 8, 10, 12, 15, 17, 20, 25, 30, 40, 50, 60, 80, 100)) {
+                yield(
+                    SimConfig(
+                        totalPeers = 10000,
+                        badPeers = 9000,
+                        peerConnections = peerConnections,
+
+                        gossipD = 6,
+                        gossipDLow = 5,
+                        gossipDHigh = 7,
+                        gossipDLazy = 100,
 
                         topology = RandomNPeers(peerConnections),
                         latency = 1L
