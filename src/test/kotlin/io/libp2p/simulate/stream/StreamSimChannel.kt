@@ -80,4 +80,3 @@ private class SimChannelId(val id: String) : ChannelId {
     override fun asShortText() = id
     override fun asLongText() = id
 }
-

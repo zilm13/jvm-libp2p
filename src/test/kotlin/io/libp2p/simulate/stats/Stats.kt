@@ -16,5 +16,5 @@ interface Stats {
     // One of the following should be overridden
     operator fun plus(other: Stats): Stats = this + listOf(other)
     operator fun plus(others: List<Stats>): Stats =
-        (listOf(this) + others).reduce {a, b -> a + b}
+        (listOf(this) + others).reduce { a, b -> a + b }
 }

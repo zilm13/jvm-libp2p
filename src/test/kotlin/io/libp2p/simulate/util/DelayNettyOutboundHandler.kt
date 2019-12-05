@@ -11,7 +11,7 @@ open class DelayNettyOutboundHandler(
     val scheduler: ScheduledExecutorService,
     val msgSizeEstimator: (Any) -> Int,
     val msgDelayCalc: (Int) -> Long
-): ChannelOutboundHandlerAdapter() {
+) : ChannelOutboundHandlerAdapter() {
 
     override fun write(ctx: ChannelHandlerContext?, msg: Any, promise: ChannelPromise) {
         val msgSize = msgSizeEstimator(msg)
@@ -29,6 +29,5 @@ open class DelayNettyOutboundHandler(
     companion object {
         fun simpleDelayed(scheduler: ScheduledExecutorService, delay: RandomValue) =
             DelayNettyOutboundHandler(scheduler, { 0 }, { delay.next().toLong() })
-
     }
 }

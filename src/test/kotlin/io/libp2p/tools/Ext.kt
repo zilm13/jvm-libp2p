@@ -16,14 +16,14 @@ fun msec(info: String = "Starting...", f: () -> Unit) {
         val durS = when (d) {
             in 0..10 * 1_000L -> "" + d + " ns"
             in 10 * 1000..10 * 1_000_000L -> "" + (d / 1_000) + " us"
-            in 10 * 1_000_000L .. 1 * 1_000_000_000L -> "" + (d / 1_000_000) + " ms"
+            in 10 * 1_000_000L..1 * 1_000_000_000L -> "" + (d / 1_000_000) + " ms"
             else -> "%.3f".format((d / 1_000_000) / 1000.0) + " s"
         }
         println("done in $durS")
     }
 }
 
-operator fun <T> List<T>.get(subIndexes: IntRange) =  subList(subIndexes.first, subIndexes.last + 1)
+operator fun <T> List<T>.get(subIndexes: IntRange) = subList(subIndexes.first, subIndexes.last + 1)
 
 val Int.millis: Duration
     get() = Duration.ofMillis(this.toLong())
@@ -32,12 +32,12 @@ val Int.seconds: Duration
 val Int.minutes: Duration
     get() = Duration.ofMinutes(this.toLong())
 
-fun <K,V> Map<K, V>.setKeys(f: (K) -> K): Map<K, V> = asSequence().map { f(it.key) to it.value }.toMap()
+fun <K, V> Map<K, V>.setKeys(f: (K) -> K): Map<K, V> = asSequence().map { f(it.key) to it.value }.toMap()
 
-operator fun <K,V> Map<K, V>.plus(other: Map<K, V>): Map<K, V> =
+operator fun <K, V> Map<K, V>.plus(other: Map<K, V>): Map<K, V> =
     (asSequence() + other.asSequence()).map { it.key to it.value }.toMap()
 
-fun <K,V> List<Map<K, V>>.regroup(): Map<K, List<V>> = flatMap { it.asIterable() }.groupBy ( { it.key }, { it.value })
+fun <K, V> List<Map<K, V>>.regroup(): Map<K, List<V>> = flatMap { it.asIterable() }.groupBy({ it.key }, { it.value })
 
 fun Int.pow(n: Int): Long {
     var t = 1L
@@ -62,7 +62,6 @@ fun Double.smartRound(meaningCount: Int = 3): Double {
             cnt++
         }
         return n.roundToLong().toDouble() * 10.pow(cnt)
-
     }
 }
 

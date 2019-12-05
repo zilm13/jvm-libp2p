@@ -42,7 +42,7 @@ class Simulation1 {
         val gossipDLow: Int = 3,
         val gossipDHigh: Int = 12,
         val gossipDLazy: Int = 6,
-        val gossipAdvertise:Int = 3,
+        val gossipAdvertise: Int = 3,
         val gossipHistory: Int = 5,
         val gossipHeartbeat: Duration = 1.seconds,
 
@@ -75,7 +75,7 @@ class Simulation1 {
         )
     }
 
-    data class SimDetailedResult (
+    data class SimDetailedResult(
         val zeroHeartbeats: SimResult = SimResult(),
         val manyHeartbeats: SimResult = SimResult()
     ) {

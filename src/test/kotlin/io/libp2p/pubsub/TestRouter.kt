@@ -71,8 +71,8 @@ class TestRouter(val name: String = "" + cnt.getAndIncrement()) {
         class MyLogHandler(level: LogLevel) : LoggingHandler(channelName, level) {
             override fun write(ctx: ChannelHandlerContext, msg: Any?, promise: ChannelPromise?) {
                 msg as Rpc.RPC
-                if (ctx.channel().toString().contains("68=>72")
-                    && msg.publishCount > 0) {
+                if (ctx.channel().toString().contains("68=>72") &&
+                    msg.publishCount > 0) {
                     println("!!!")
                 }
                 super.write(ctx, msg, promise)

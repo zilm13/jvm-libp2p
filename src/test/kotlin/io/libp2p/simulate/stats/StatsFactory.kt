@@ -11,7 +11,7 @@ interface StatsFactory {
             override fun plus(other: Stats) = TODO()
         }
 
-        var DEFAULT: StatsFactory  = object : StatsFactory {
+        var DEFAULT: StatsFactory = object : StatsFactory {
             override fun createStats(name: String) = DescriptiveStatsImpl()
         }
     }

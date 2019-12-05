@@ -4,8 +4,8 @@ import io.netty.buffer.ByteBuf
 
 typealias MsgSizeEstimator = (Any) -> Int
 
-val GeneralSizeEstimator: MsgSizeEstimator =  { msg ->
-    when(msg) {
+val GeneralSizeEstimator: MsgSizeEstimator = { msg ->
+    when (msg) {
         is ByteBuf -> msg.readableBytes()
         else -> 0
     }
