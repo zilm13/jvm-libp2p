@@ -33,7 +33,7 @@ public class ControlledExecutorServiceImpl implements ControlledExecutorService 
       timeController.cancelTask(this);
     }
 
-    public void execute() {
+    public CompletableFuture<Void> execute() {
       delegateExecutor.execute(() -> {
         try {
           V res = callable.call();
@@ -42,6 +42,7 @@ public class ControlledExecutorServiceImpl implements ControlledExecutorService 
           future.delegate.completeExceptionally(e);
         }
       });
+      return future.delegate.thenApply(i -> null);
     }
 
     @Override
