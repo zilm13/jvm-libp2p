@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.Random
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 class Simulation1 {
 
@@ -56,7 +58,8 @@ class Simulation1 {
         val manyHeartbeatsDelay: Duration = 30.seconds,
         val generatedNetworksCount: Int = 1,
         val sentMessageCount: Int = 10,
-        val startRandomSeed: Long = 0
+        val startRandomSeed: Long = 0,
+        val iterationThreadCount: Int = 1
     )
 
     data class SimResult(
@@ -273,6 +276,13 @@ class Simulation1 {
 
             val timeController = TimeControllerImpl()
             println("Creating peers")
+
+            val peerExecutors =
+                if (opt.iterationThreadCount > 1)
+                    (0 until opt.iterationThreadCount).map { Executors.newSingleThreadScheduledExecutor() }
+                else
+                    listOf(Executor { it.run() })
+
             val peers = (0 until cfg.totalPeers).map {
                 GossipSimPeer(Topic).apply {
                     routerInstance = GossipRouter().apply {
@@ -288,8 +298,8 @@ class Simulation1 {
 //                    pubsubLogs = LogLevel.ERROR
 //                    wireLogs = LogLevel.ERROR
 //                }
-
-                    simExecutor = ControlledExecutorServiceImpl(timeController)
+                    val delegateExecutor = peerExecutors[it % peerExecutors.size]
+                    simExecutor = ControlledExecutorServiceImpl(delegateExecutor, timeController)
                     msgSizeEstimator = GossipSimPeer.rawPubSubMsgSizeEstimator(AvrgBlockMessageSize)
                     msgDelayer = { cfg.latency }
 
