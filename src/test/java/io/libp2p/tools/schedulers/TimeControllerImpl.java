@@ -31,7 +31,8 @@ public class TimeControllerImpl implements TimeController {
       throw new IllegalArgumentException("newTime < curTime: " + newTime + ", " + curTime);
     }
     newTime += timeShift;
-    while (taskQueue.getEarliestTime() <= newTime) {
+    while (!taskQueue.isEmpty() && taskQueue.getEarliestTime() <= newTime) {
+      curTime = taskQueue.getEarliestTime();
       taskQueue.executeEarliest();
     }
     curTime = newTime;
@@ -46,7 +47,7 @@ public class TimeControllerImpl implements TimeController {
 
     taskQueue.add(task);
 
-    if (getTime() == task.getTime()) {
+    if (getTime() == task.getTime() && !taskQueue.isExecuting()) {
       executeImmediateTasksNonRecursively();
     }
   }

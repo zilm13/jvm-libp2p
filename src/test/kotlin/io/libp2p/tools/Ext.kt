@@ -4,12 +4,12 @@ import java.time.Duration
 import kotlin.math.max
 import kotlin.math.roundToLong
 
-fun msec(info: String = "Starting...", f: () -> Unit) {
+fun <R> msec(info: String = "Starting...", f: () -> R): R {
     val s = System.nanoTime()
     try {
         print("$info ")
         System.out.flush()
-        f()
+        return f()
     } finally {
         val d = System.nanoTime() - s
 

@@ -12,6 +12,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class TaskQueue {
 
     private NavigableMap<Long, Queue<TimeController.Task>> tasks = Collections.synchronizedNavigableMap(new TreeMap<>());
+    private boolean executing = false;
 
     public void add(TimeController.Task task) {
         tasks.computeIfAbsent(task.getTime(), t -> new ConcurrentLinkedQueue<>()).add(task);
@@ -22,6 +23,10 @@ public class TaskQueue {
             queue.remove(task);
             return queue;
         });
+    }
+
+    public boolean isEmpty() {
+        return tasks.isEmpty();
     }
 
     public long getEarliestTime() {
@@ -38,28 +43,45 @@ public class TaskQueue {
     }
 
     public void executeEarliest() {
-        Queue<TimeController.Task> taskQueue = peekEarliest();
-        Queue<CompletableFuture<Void>> resQueue = new LinkedBlockingQueue<>();
+        if (executing) return;
+        executing = true;
+        try {
+            Queue<TimeController.Task> taskQueue = peekEarliest();
+            if (taskQueue == null) return;
 
-        drainQueue(taskQueue, resQueue);
+            Queue<CompletableFuture<Void>> resQueue = new LinkedBlockingQueue<>();
 
-        while (!resQueue.isEmpty()) {
-            try {
-                resQueue.poll().get();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            drainQueue(taskQueue, resQueue);
+
+            while (!resQueue.isEmpty()) {
+                try {
+                    resQueue.poll().get();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
+            dropEarliest();
+        } finally {
+            executing = false;
         }
-        dropEarliest();
+    }
+
+    public boolean isExecuting() {
+        return executing;
     }
 
     private synchronized void drainQueue(Queue<TimeController.Task> taskQueue, Queue<CompletableFuture<Void>> resQueue) {
         while (!taskQueue.isEmpty()) {
-            CompletableFuture<Void> taskFut = taskQueue.poll().execute();
-            CompletableFuture<Void> resFut = taskFut.whenComplete((v, t) -> {
-                drainQueue(taskQueue, resQueue);
-            });
-            resQueue.add(resFut);
+            TimeController.Task task = taskQueue.poll();
+            CompletableFuture<Void> taskFut = task.execute();
+            if (taskFut.isDone()) {
+                resQueue.add(taskFut);
+            } else {
+                CompletableFuture<Void> resFut = taskFut.whenComplete((v, t) -> {
+                    drainQueue(taskQueue, resQueue);
+                });
+                resQueue.add(resFut);
+            }
         }
     }
 }
