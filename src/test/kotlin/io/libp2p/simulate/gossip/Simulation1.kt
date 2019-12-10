@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.Random
+import java.util.concurrent.Callable
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
@@ -59,7 +60,8 @@ class Simulation1 {
         val generatedNetworksCount: Int = 1,
         val sentMessageCount: Int = 10,
         val startRandomSeed: Long = 0,
-        val iterationThreadCount: Int = 1
+        val iterationThreadsCount: Int = 1,
+        val parallelIterationsCount: Int = 1
     )
 
     data class SimResult(
@@ -110,7 +112,7 @@ class Simulation1 {
                 )
         }
         val opt = SimOptions(
-            generatedNetworksCount = 50,
+            generatedNetworksCount = 10,
             sentMessageCount = 3,
             startRandomSeed = 2
         )
@@ -250,12 +252,18 @@ class Simulation1 {
     }
 
     fun sim(cfg: Sequence<SimConfig>, opt: SimOptions): List<SimDetailedResult> {
-        val res = mutableListOf<SimDetailedResult>()
-        for (config in cfg) {
-            println("Starting sim: \n\t$config\n\t$opt")
-            res += sim(config, opt)
-            println("Complete: ${res.last()}")
-        }
+        val executorService = Executors.newFixedThreadPool(opt.parallelIterationsCount)
+        val resFut = cfg.toList()
+            .map { config ->
+                executorService.submit(Callable {
+                    println("Starting sim: \n\t$config\n\t$opt")
+                    val r = sim(config, opt)
+                    println("Complete: $r")
+                    r
+                })
+            }
+
+        val res = resFut.map { it.get() }
 
         println("Results: ")
         println("==============")
@@ -278,8 +286,8 @@ class Simulation1 {
             println("Creating peers")
 
             val peerExecutors =
-                if (opt.iterationThreadCount > 1)
-                    (0 until opt.iterationThreadCount).map { Executors.newSingleThreadScheduledExecutor() }
+                if (opt.iterationThreadsCount > 1)
+                    (0 until opt.iterationThreadsCount).map { Executors.newSingleThreadScheduledExecutor() }
                 else
                     listOf(Executor { it.run() })
 
