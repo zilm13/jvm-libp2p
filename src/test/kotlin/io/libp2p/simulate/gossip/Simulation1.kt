@@ -179,6 +179,73 @@ class Simulation1 {
         sim(cfgs, opt)
     }
 
+    @Disabled
+    @Test
+    fun testSizeOptimization1() {
+        val peerConnections = 20
+        val cfgs = sequence {
+            for (gossipD in arrayOf(2, 3, 4, 5, 6, 7))
+                yield(
+                    SimConfig(
+                        totalPeers = 5000,
+                        badPeers = 0,
+                        peerConnections = peerConnections,
+
+                        gossipD = gossipD,
+                        gossipDLow = gossipD - 1,
+                        gossipDHigh = gossipD + 1,
+                        gossipDLazy = 10,
+
+                        topology = RandomNPeers(peerConnections),
+                        latency = 1L
+                    )
+                )
+        }
+        val opt = SimOptions(
+            generatedNetworksCount = 10,
+            sentMessageCount = 3,
+            startRandomSeed = 2
+        )
+
+        sim(cfgs, opt)
+    }
+
+    @Disabled
+    @Test
+    fun testHeartbeatOptimization1() {
+        val peerConnections = 20
+        val cfgs = sequence {
+            for (gossipHeartbeat in arrayOf(1000, 500, 100, 50, 20))
+                yield(
+                    SimConfig(
+                        totalPeers = 5000,
+                        badPeers = 0,
+                        peerConnections = peerConnections,
+
+                        gossipD = 2,
+                        gossipDLow = 1,
+                        gossipDHigh = 3,
+                        gossipDLazy = 10,
+                        gossipHeartbeat = gossipHeartbeat.millis,
+                        gossipHistory = 50, // increase seen history to avoid circular messages
+
+                        topology = RandomNPeers(peerConnections),
+                        latency = 10L
+                    )
+                )
+        }
+        val opt = SimOptions(
+            warmUpDelay = 60.seconds,
+            zeroHeartbeatsDelay = 500.millis,
+            manyHeartbeatsDelay = 30.seconds,
+            generatedNetworksCount = 10,
+            sentMessageCount = 3,
+            startRandomSeed = 2
+        )
+
+        sim(cfgs, opt)
+    }
+
     fun sim(cfg: Sequence<SimConfig>, opt: SimOptions): List<SimDetailedResult> {
         val res = mutableListOf<SimDetailedResult>()
         for (config in cfg) {
@@ -237,26 +304,6 @@ class Simulation1 {
 
             println("Connecting peers")
             val net = cfg.topology.connect(peers)
-//        val psGroup = mutableSetOf<TestGossip>()
-//        val ps = mutableSetOf(testPeers[7])
-//        var found = false
-//        while (ps.isNotEmpty()) {
-//            val p = ps.first()
-//            if (p.peer.name == "0") {
-//                found = true
-//                break
-//            }
-//            ps -= p
-//            psGroup += p
-//            val connectedToP = p.peer.connections
-//                .flatMap { listOf(it.dialer, it.listener) }
-//                .distinct()
-//                .mapNotNull { p -> testPeers.find { it.peer == p } }
-//                .filter { it != p }
-//                .filter { it.validationResult == RESULT_VALID }
-//                .filter { !psGroup.contains(it) }
-//            ps += connectedToP
-//        }
 
             println("Some warm up")
             timeController.addTime(opt.warmUpDelay)
