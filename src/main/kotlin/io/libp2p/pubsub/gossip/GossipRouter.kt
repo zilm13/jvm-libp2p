@@ -35,7 +35,10 @@ open class GossipRouter : AbstractRouter() {
     }
 
     var heartbeatInterval by lazyVar { Duration.ofSeconds(1) }
-    var heartbeat by lazyVar { Heartbeat.create(executor, heartbeatInterval, curTime) }
+    var heartbeatInitialDelay: Duration = Duration.ZERO
+    var heartbeat by lazyVar {
+        Heartbeat.create(executor, heartbeatInterval, curTime, heartbeatInterval + heartbeatInitialDelay)
+    }
     var D = 3
     var DLow = 2
     var DHigh = 4

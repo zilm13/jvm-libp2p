@@ -20,11 +20,11 @@ open class Heartbeat {
     open fun currentTime() = System.currentTimeMillis()
 
     companion object {
-        fun create(executor: ScheduledExecutorService, interval: Duration, curTime: () -> Long): Heartbeat {
+        fun create(executor: ScheduledExecutorService, interval: Duration, curTime: () -> Long, initialDelay: Duration = interval): Heartbeat {
             val heartbeat = object : Heartbeat() {
                 override fun currentTime() = curTime()
             }
-            executor.scheduleAtFixedRate(heartbeat::fireBeat, interval.toMillis(), interval.toMillis(), MILLISECONDS)
+            executor.scheduleAtFixedRate(heartbeat::fireBeat, initialDelay.toMillis(), interval.toMillis(), MILLISECONDS)
             return heartbeat
         }
     }
