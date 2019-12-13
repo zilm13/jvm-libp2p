@@ -4,9 +4,9 @@ import io.libp2p.core.pubsub.Topic
 import io.libp2p.etc.types.toByteBuf
 import io.libp2p.pubsub.gossip.GossipRouter
 import io.libp2p.simulate.gossip.GossipSimPeer
-import io.libp2p.tools.regroup
 import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl
 import io.libp2p.tools.schedulers.TimeControllerImpl
+import io.libp2p.tools.transpose
 import io.netty.handler.logging.LogLevel
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
@@ -44,19 +44,26 @@ class GossipSimTest {
 
     @Test
     fun regroupTest() {
-        val tl: Map<String, List<Int>> = listOf(
+        val t1 = listOf(
             mapOf(
-                "a" to 1,
-                "b" to 1,
-                "c" to 1
+                "a" to 11,
+                "b" to 12,
+                "c" to 13
             ),
             mapOf(
-                "a" to 2,
-                "b" to 2,
-                "d" to 2
+                "a" to 21,
+                "b" to 22,
+                "c" to 23
             )
-        ).regroup()
+        )
 
-        println(tl)
+        val t2 = t1.transpose()
+
+        Assertions.assertEquals(2, t2["a"]!!.size)
+        Assertions.assertEquals(11, t2["a"]!![0])
+        Assertions.assertEquals(21, t2["a"]!![1])
+
+        val t3 = t2.transpose()
+        Assertions.assertEquals(t1, t3)
     }
 }

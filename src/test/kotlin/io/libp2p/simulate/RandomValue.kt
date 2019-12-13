@@ -20,11 +20,14 @@ interface RandomDistribution {
     fun newValue(rnd: Random): RandomValue
 
     companion object {
-        fun const(constVal: Double) = object : RandomDistribution {
-            override fun newValue(rnd: Random) = RandomValue.const(constVal)
-        }
-        fun uniform(from: Double, to: Double) = object : RandomDistribution {
-            override fun newValue(rnd: Random) = RandomValue.uniform(from, to, rnd)
-        }
+        fun const(constVal: Double) = ConstRandomDistr(constVal)
+        fun uniform(from: Double, to: Double) = UniformRandomDistr(from, to)
+    }
+
+    data class ConstRandomDistr(val constVal: Double) : RandomDistribution {
+        override fun newValue(rnd: Random) = RandomValue.const(constVal)
+    }
+    data class UniformRandomDistr(val from: Double, val to: Double) : RandomDistribution {
+        override fun newValue(rnd: Random) = RandomValue.uniform(from, to, rnd)
     }
 }

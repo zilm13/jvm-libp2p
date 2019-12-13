@@ -3,6 +3,7 @@ package io.libp2p.tools
 import java.time.Duration
 import kotlin.math.max
 import kotlin.math.roundToLong
+import kotlin.reflect.full.memberProperties
 
 fun <R> msec(info: String = "Starting...", f: () -> R): R {
     val s = System.nanoTime()
@@ -37,7 +38,19 @@ fun <K, V> Map<K, V>.setKeys(f: (K) -> K): Map<K, V> = asSequence().map { f(it.k
 operator fun <K, V> Map<K, V>.plus(other: Map<K, V>): Map<K, V> =
     (asSequence() + other.asSequence()).map { it.key to it.value }.toMap()
 
-fun <K, V> List<Map<K, V>>.regroup(): Map<K, List<V>> = flatMap { it.asIterable() }.groupBy({ it.key }, { it.value })
+fun <K, V> List<Map<K, V>>.transpose(): Map<K, List<V>> = flatMap { it.asIterable() }.groupBy({ it.key }, { it.value })
+fun <K, V> Map<K, List<V>>.transpose(): List<Map<K, V>> {
+    val list = asSequence()
+        .toList()
+        .flatMap { kv ->
+            kv.value.mapIndexed { i, v ->
+                kv.key to (i to v)
+            }
+        }
+    val indexedMap = list.groupBy { it.second.first }
+    val ret = indexedMap.map { it.value.associate { it.first to it.second.second } }
+    return ret
+}
 
 fun Int.pow(n: Int): Long {
     var t = 1L
@@ -87,3 +100,5 @@ fun String.formatTable(firstLineHeaders: Boolean = true, separator: String = "\t
     }
     return strings.joinToString("\n")
 }
+
+fun Any.propertiesAsMap() = javaClass.kotlin.memberProperties.map { it.name to it.get(this) }.toMap()

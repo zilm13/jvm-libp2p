@@ -13,11 +13,13 @@ import io.libp2p.simulate.topology.RandomNPeers
 import io.libp2p.tools.formatTable
 import io.libp2p.tools.get
 import io.libp2p.tools.millis
+import io.libp2p.tools.propertiesAsMap
 import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl
 import io.libp2p.tools.schedulers.TimeControllerImpl
 import io.libp2p.tools.seconds
 import io.libp2p.tools.setKeys
 import io.libp2p.tools.smartRound
+import io.libp2p.tools.transpose
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.lang.Integer.max
@@ -30,7 +32,6 @@ import java.util.concurrent.Executors
 class Simulation1 {
 
     val Topic = Topic("Topic-1")
-    val AvrgBlockMessageSize = 32 * 1024
     val MaxMissingPeers = 32
 
     data class GossipStats(
@@ -41,7 +42,6 @@ class Simulation1 {
     data class SimConfig(
         val totalPeers: Int = 10000,
         val badPeers: Int = 0,
-        val peerConnections: Int = 10,
 
         val gossipD: Int = 6,
         val gossipDLow: Int = 3,
@@ -52,21 +52,24 @@ class Simulation1 {
         val gossipHeartbeat: Duration = 1.seconds,
         val gossipHeartbeatAddDelay: RandomDistribution = RandomDistribution.const(0.0),
 
-        val topology: Topology = RandomNPeers(peerConnections),
-        val latency: Long = 1L,
+        val avrgMessageSize: Int = 32 * 1024,
+        val topology: Topology = RandomNPeers(10),
+        val latency: RandomDistribution = RandomDistribution.const(1.0),
         val peersTimeShift: RandomDistribution = RandomDistribution.const(0.0)
     )
 
     data class SimOptions(
         val warmUpDelay: Duration = 5.seconds,
-        val zeroHeartbeatsDelay: Duration = 500.millis,
+        val zeroHeartbeatsDelay: Duration = 500.millis, // 0 to skip this step
         val manyHeartbeatsDelay: Duration = 30.seconds,
         val generatedNetworksCount: Int = 1,
         val sentMessageCount: Int = 10,
         val startRandomSeed: Long = 0,
         val iterationThreadsCount: Int = 1,
         val parallelIterationsCount: Int = 1
-    )
+    ) {
+        fun isZeroHeartbeatsEnabled(): Boolean = zeroHeartbeatsDelay.toMillis() > 0
+    }
 
     data class SimResult(
         val packetCountPerMessage: WritableStats = StatsFactory.DEFAULT.createStats(),
@@ -88,30 +91,30 @@ class Simulation1 {
         val zeroHeartbeats: SimResult = SimResult(),
         val manyHeartbeats: SimResult = SimResult()
     ) {
-        fun getData() =
-            zeroHeartbeats.getData().setKeys { "0-$it" } +
-            manyHeartbeats.getData().setKeys { "N-$it" }
+        fun getData(includeZero: Boolean = true) =
+            if (includeZero) {
+                zeroHeartbeats.getData().setKeys { "0-$it" } +
+                manyHeartbeats.getData().setKeys { "N-$it" }
+            } else {
+                manyHeartbeats.getData()
+            }
     }
 
     @Disabled
     @Test
     fun testResultStabilityAgainstNetworkSize() {
-        val peerConnections = 20
         val cfgs = sequence {
             for (totalPeers in arrayOf(1000, 5000, 10000, 20000, 30000))
                 yield(
                     SimConfig(
                         totalPeers = totalPeers,
                         badPeers = (0.9 * totalPeers).toInt(),
-                        peerConnections = peerConnections,
+                        topology = RandomNPeers(20),
 
                         gossipD = 6,
                         gossipDLow = 5,
                         gossipDHigh = 7,
-                        gossipDLazy = 6,
-
-                        topology = RandomNPeers(peerConnections),
-                        latency = 1L
+                        gossipDLazy = 6
                     )
                 )
         }
@@ -127,7 +130,6 @@ class Simulation1 {
     @Disabled
     @Test
     fun testBFT() {
-        val peerConnections = 20
         val totalPeers = 10000
         val cfgs = sequence {
             for (badPeers in arrayOf(0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.93, 0.95, 0.97)) {
@@ -135,15 +137,12 @@ class Simulation1 {
                     SimConfig(
                         totalPeers = totalPeers,
                         badPeers = (badPeers * totalPeers).toInt(),
-                        peerConnections = peerConnections,
+                        topology = RandomNPeers(20),
 
                         gossipD = 6,
                         gossipDLow = 5,
                         gossipDHigh = 7,
-                        gossipDLazy = 6,
-
-                        topology = RandomNPeers(peerConnections),
-                        latency = 1L
+                        gossipDLazy = 6
                     )
                 )
             }
@@ -166,15 +165,12 @@ class Simulation1 {
                     SimConfig(
                         totalPeers = 10000,
                         badPeers = 9000,
-                        peerConnections = peerConnections,
+                        topology = RandomNPeers(peerConnections),
 
                         gossipD = 6,
                         gossipDLow = 5,
                         gossipDHigh = 7,
-                        gossipDLazy = 100,
-
-                        topology = RandomNPeers(peerConnections),
-                        latency = 1L
+                        gossipDLazy = 100
                     )
                 )
             }
@@ -191,22 +187,18 @@ class Simulation1 {
     @Disabled
     @Test
     fun testSizeOptimization1() {
-        val peerConnections = 20
         val cfgs = sequence {
             for (gossipD in arrayOf(1, 2, 3, 4, 5, 6, 7))
                 yield(
                     SimConfig(
                         totalPeers = 5000,
                         badPeers = 0,
-                        peerConnections = peerConnections,
+                        topology = RandomNPeers(20),
 
                         gossipD = gossipD,
                         gossipDLow = max(1, gossipD - 1),
                         gossipDHigh = gossipD + 1,
                         gossipDLazy = 10,
-
-                        topology = RandomNPeers(peerConnections),
-                        latency = 1L,
                         gossipHeartbeatAddDelay = RandomDistribution.uniform(0.0, 1000.0)
                     )
                 )
@@ -223,35 +215,66 @@ class Simulation1 {
 
     @Disabled
     @Test
-    fun testHeartbeatOptimization1() {
-        val peerConnections = 20
+    fun testSizeOptimizationDLazy() {
         val cfgs = sequence {
-            for (gossipHeartbeat in arrayOf(1000, 500, 100, 50, 20))
+            for (gossipDLazy in arrayOf(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20))
                 yield(
                     SimConfig(
                         totalPeers = 5000,
                         badPeers = 0,
-                        peerConnections = peerConnections,
+                        topology = RandomNPeers(20),
 
-                        gossipD = 2,
-                        gossipDLow = 1,
-                        gossipDHigh = 3,
-                        gossipDLazy = 10,
-                        gossipHeartbeat = gossipHeartbeat.millis,
-                        gossipHistory = 50, // increase seen history to avoid circular messages
+                        gossipD = 6,
+                        gossipDLow = 3,
+                        gossipDHigh = 12,
+                        gossipDLazy = gossipDLazy,
+                        gossipHeartbeatAddDelay = RandomDistribution.uniform(0.0, 1000.0),
 
-                        topology = RandomNPeers(peerConnections),
-                        latency = 10L
+                        latency = RandomDistribution.uniform(1.0, 50.0)
                     )
                 )
         }
         val opt = SimOptions(
-            warmUpDelay = 60.seconds,
-            zeroHeartbeatsDelay = 500.millis,
+            zeroHeartbeatsDelay = 0.millis,
+            generatedNetworksCount = 10,
+            sentMessageCount = 3,
+            startRandomSeed = 3,
+            parallelIterationsCount = 4
+        )
+
+        sim(cfgs, opt)
+    }
+
+    @Disabled
+    @Test
+    fun testHeartbeatPeriod() {
+        val cfgs = sequence {
+            for (gossipHeartbeat in arrayOf(1000, 500, 300, 100, 50, 30, 10))
+                yield(
+                    SimConfig(
+                        totalPeers = 5000,
+                        badPeers = 4500,
+                        topology = RandomNPeers(20),
+
+                        gossipD = 6,
+                        gossipDLow = 3,
+                        gossipDHigh = 12,
+                        gossipDLazy = 10,
+                        gossipHeartbeat = gossipHeartbeat.millis,
+                        gossipHeartbeatAddDelay = RandomDistribution.uniform(0.0, 1000.0),
+                        gossipHistory = 100, // increase history to serve low latency IWANT requests
+
+                        latency = RandomDistribution.uniform(1.0, 50.0)
+                    )
+                )
+        }
+        val opt = SimOptions(
+            warmUpDelay = 10.seconds,
+            zeroHeartbeatsDelay = 0.millis,
             manyHeartbeatsDelay = 30.seconds,
             generatedNetworksCount = 10,
             sentMessageCount = 3,
-            startRandomSeed = 2
+            parallelIterationsCount = 4
         )
 
         sim(cfgs, opt)
@@ -259,7 +282,8 @@ class Simulation1 {
 
     fun sim(cfg: Sequence<SimConfig>, opt: SimOptions): List<SimDetailedResult> {
         val executorService = Executors.newFixedThreadPool(opt.parallelIterationsCount)
-        val resFut = cfg.toList()
+        val cfgList = cfg.toList()
+        val resFut = cfgList
             .map { config ->
                 executorService.submit(Callable {
                     println("Starting sim: \n\t$config\n\t$opt")
@@ -271,11 +295,24 @@ class Simulation1 {
 
         val res = resFut.map { it.get() }
 
+        val variativeConfigProps = cfgList
+            .map { it.propertiesAsMap() }
+            .transpose().asSequence()
+            .filter { it.value.distinct().size > 1 }
+            .associate { it.key to it.value.map { it.toString() } }
+            .transpose()
+
+
         println("Results: ")
         println("==============")
 
-        val headers = res[0].getData().keys.joinToString("\t")
-        val data = res.map { it.getData().values.map { it.smartRound() }.joinToString("\t") }.joinToString("\n")
+        val resData = res.map { it.getData(opt.isZeroHeartbeatsEnabled()) }
+        val resDataFormatted = resData.map { it.mapValues { it.value.smartRound().toString() } }
+        val totalData = (variativeConfigProps.transpose() + resDataFormatted.transpose()).transpose()
+
+        val headers = totalData[0].keys.joinToString("\t")
+        val data = totalData.joinToString("\n") { it.values.joinToString("\t") }
+
         val table = (headers + "\n" + data).formatTable(true)
         println(table)
 
@@ -318,8 +355,9 @@ class Simulation1 {
 //                }
                     val delegateExecutor = peerExecutors[it % peerExecutors.size]
                     simExecutor = ControlledExecutorServiceImpl(delegateExecutor, timeController)
-                    msgSizeEstimator = GossipSimPeer.rawPubSubMsgSizeEstimator(AvrgBlockMessageSize)
-                    msgDelayer = { cfg.latency }
+                    msgSizeEstimator = GossipSimPeer.rawPubSubMsgSizeEstimator(cfg.avrgMessageSize)
+                    val latencyRandomValue = cfg.latency.newValue(commonRnd)
+                    msgDelayer = { latencyRandomValue.next().toLong() }
 
                     start()
                 }
@@ -346,19 +384,21 @@ class Simulation1 {
                 val sentTime = timeController.time
                 peers[i].apiPublisher.publish("Message-$i".toByteArray().toByteBuf(), Topic)
 
-                timeController.addTime(opt.zeroHeartbeatsDelay)
-
                 val receivePeers = peers - peers[i]
-                run {
-                    val ns = net.networkStats
-                    val gs = calcGossipStats(receivePeers, sentTime)
-                    ret.zeroHeartbeats.packetCountPerMessage.addValue(ns.msgCount.toDouble() / peers.size)
-                    ret.zeroHeartbeats.trafficPerMessage.addValue(ns.traffic.toDouble() / peers.size)
-                    receivePeers.filter { it.lastMsg != null }
-                        .map { it.lastMsgTime - sentTime }
-                        .forEach { ret.zeroHeartbeats.deliverDelay.addValue(it) }
-                    ret.zeroHeartbeats.deliveredPart.addValue(gs.msgDelay.getCount().toDouble() / receivePeers.size)
-                    println("Zero heartbeats: $ns\t\t$gs")
+
+                if (opt.isZeroHeartbeatsEnabled()) {
+                    timeController.addTime(opt.zeroHeartbeatsDelay)
+                    run {
+                        val ns = net.networkStats
+                        val gs = calcGossipStats(receivePeers, sentTime)
+                        ret.zeroHeartbeats.packetCountPerMessage.addValue(ns.msgCount.toDouble() / peers.size)
+                        ret.zeroHeartbeats.trafficPerMessage.addValue(ns.traffic.toDouble() / peers.size)
+                        receivePeers.filter { it.lastMsg != null }
+                            .map { it.lastMsgTime - sentTime }
+                            .forEach { ret.zeroHeartbeats.deliverDelay.addValue(it) }
+                        ret.zeroHeartbeats.deliveredPart.addValue(gs.msgDelay.getCount().toDouble() / receivePeers.size)
+                        println("Zero heartbeats: $ns\t\t$gs")
+                    }
                 }
 
                 timeController.addTime(opt.manyHeartbeatsDelay)

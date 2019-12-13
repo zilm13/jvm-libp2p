@@ -8,7 +8,7 @@ import org.jgrapht.generate.RandomRegularGraphGenerator
 import org.jgrapht.graph.DefaultUndirectedGraph
 import java.util.Random
 
-class RandomNPeers(val peersCount: Int = 10) : Topology {
+data class RandomNPeers(val peersCount: Int = 10) : Topology {
     override var random = Random()
 
     override fun connect(peers: List<SimPeer>): Network {
