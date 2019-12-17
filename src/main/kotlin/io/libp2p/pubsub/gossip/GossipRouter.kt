@@ -161,7 +161,6 @@ open class GossipRouter : AbstractRouter() {
                         prune(dropPeer, topic)
                     }
                 }
-                submitGossip(topic, peers)
             }
             fanout.entries.forEach { (topic, peers) ->
                 peers.removeIf { it in getTopicPeers(topic) }
@@ -169,7 +168,6 @@ open class GossipRouter : AbstractRouter() {
                 if (needMore > 0) {
                     peers += (getTopicPeers(topic) - peers).shuffled(random).take(needMore)
                 }
-                submitGossip(topic, peers)
             }
             lastPublished.entries.removeIf { (topic, lastPub) ->
                 (time - lastPub > fanoutTTL)
