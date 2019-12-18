@@ -68,7 +68,8 @@ class Simulation1 {
         val sentMessageCount: Int = 10,
         val startRandomSeed: Long = 0,
         val iterationThreadsCount: Int = 1,
-        val parallelIterationsCount: Int = 1
+        val parallelIterationsCount: Int = 1,
+        val measureTCPFramesOverhead: Boolean = true
     ) {
         fun isZeroHeartbeatsEnabled(): Boolean = zeroHeartbeatsDelay.toMillis() > 0
     }
@@ -398,7 +399,7 @@ class Simulation1 {
 //                }
                     val delegateExecutor = peerExecutors[it % peerExecutors.size]
                     simExecutor = ControlledExecutorServiceImpl(delegateExecutor, timeController)
-                    msgSizeEstimator = GossipSimPeer.rawPubSubMsgSizeEstimator(cfg.avrgMessageSize)
+                    msgSizeEstimator = GossipSimPeer.rawPubSubMsgSizeEstimator(cfg.avrgMessageSize, opt.measureTCPFramesOverhead)
                     val latencyRandomValue = cfg.latency.newValue(commonRnd)
                     msgDelayer = { latencyRandomValue.next().toLong() }
                     validationDelay = cfg.gossipValidationDelay
