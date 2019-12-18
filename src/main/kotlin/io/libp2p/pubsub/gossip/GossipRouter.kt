@@ -43,6 +43,7 @@ open class GossipRouter : AbstractRouter() {
     var DLow = 2
     var DHigh = 4
     var DGossip = 3
+    var immediateGossip = false
     var fanoutTTL = 60 * 1000L
     var gossipSize by lazyVar { 3 }
     var gossipHistoryLength by lazyVar { 5 }
@@ -104,6 +105,7 @@ open class GossipRouter : AbstractRouter() {
                 .filter { it != receivedFrom }
                 .forEach { submitPublishMessage(it, pubMsg) }
             mCache.put(pubMsg)
+            gossipNow(pubMsg)
         }
         flushAllPending()
     }
@@ -122,8 +124,22 @@ open class GossipRouter : AbstractRouter() {
             .map { submitPublishMessage(it, msg) }
 
         mCache.put(msg)
+
+        gossipNow(msg)
+
         flushAllPending()
         return anyComplete(list)
+    }
+
+    fun gossipNow(msg: Rpc.Message) {
+        if (!immediateGossip) return
+
+        msg.topicIDsList.forEach { topic ->
+            val gossipPeers = (getTopicPeers(topic) - mesh[topic]!! - (fanout[topic] ?: emptyList()))
+                .shuffled(random).take(DGossip)
+            submitGossip(topic, gossipPeers)
+        }
+
     }
 
     override fun subscribe(topic: String) {
@@ -174,10 +190,12 @@ open class GossipRouter : AbstractRouter() {
                     .whenTrue { fanout.remove(topic) }
             }
 
-            (mesh.keys.toSet() + fanout.keys).forEach { topic ->
-                val gossipPeers = (getTopicPeers(topic) - mesh[topic]!! - (fanout[topic] ?: emptyList()))
-                    .shuffled(random).take(DGossip)
-                submitGossip(topic, gossipPeers)
+            if (!immediateGossip) {
+                (mesh.keys.toSet() + fanout.keys).forEach { topic ->
+                    val gossipPeers = (getTopicPeers(topic) - mesh[topic]!! - (fanout[topic] ?: emptyList()))
+                        .shuffled(random).take(DGossip)
+                    submitGossip(topic, gossipPeers)
+                }
             }
 
             mCache.shift()
