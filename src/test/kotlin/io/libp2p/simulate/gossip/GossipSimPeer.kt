@@ -12,10 +12,12 @@ import io.libp2p.pubsub.PubsubRouterDebug
 import io.libp2p.pubsub.flood.FloodRouter
 import io.libp2p.simulate.stream.StreamSimPeer
 import io.libp2p.simulate.util.MsgSizeEstimator
+import io.libp2p.tools.millis
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import pubsub.pb.Rpc
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 class GossipSimPeer(val topic: Topic) : StreamSimPeer<Unit>(true) {
 
@@ -29,6 +31,7 @@ class GossipSimPeer(val topic: Topic) : StreamSimPeer<Unit>(true) {
     val apiPublisher by lazy { api.createPublisher(keyPair.first, 0L) }
     var pubsubLogs: LogLevel? = null
 
+    var validationDelay = 0.millis
     var validationResult = RESULT_VALID
     var subscription: PubsubSubscription? = null
     var lastMsg: MessageApi? = null
@@ -42,7 +45,13 @@ class GossipSimPeer(val topic: Topic) : StreamSimPeer<Unit>(true) {
     override fun start(): CompletableFuture<Unit> {
         subscription = api.subscribe(Validator {
             onNewMsg(it)
-            validationResult
+            if (validationDelay.toMillis() == 0L) {
+                validationResult
+            } else {
+                val ret = CompletableFuture<Boolean>()
+                simExecutor.schedule({ ret.complete(validationResult.get()) }, validationDelay.toMillis(), TimeUnit.MILLISECONDS)
+                ret
+            }
         }, topic)
 
         return super.start()

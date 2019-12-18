@@ -47,10 +47,12 @@ class Simulation1 {
         val gossipDLow: Int = 3,
         val gossipDHigh: Int = 12,
         val gossipDLazy: Int = 6,
+        val gossipImmediateGossip: Boolean = false,
         val gossipAdvertise: Int = 3,
         val gossipHistory: Int = 5,
         val gossipHeartbeat: Duration = 1.seconds,
         val gossipHeartbeatAddDelay: RandomDistribution = RandomDistribution.const(0.0),
+        val gossipValidationDelay: Duration = 0.millis,
 
         val avrgMessageSize: Int = 32 * 1024,
         val topology: Topology = RandomNPeers(10),
@@ -217,6 +219,7 @@ class Simulation1 {
     @Test
     fun testSizeOptimizationDLazy() {
         val cfgs = sequence {
+            for (avrgMessageSize in arrayOf(32 * 1024, 512))
             for (gossipDLazy in arrayOf(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20))
                 yield(
                     SimConfig(
@@ -225,11 +228,12 @@ class Simulation1 {
                         topology = RandomNPeers(20),
 
                         gossipD = 6,
-                        gossipDLow = 3,
-                        gossipDHigh = 12,
+                        gossipDLow = 5,
+                        gossipDHigh = 7,
                         gossipDLazy = gossipDLazy,
                         gossipHeartbeatAddDelay = RandomDistribution.uniform(0.0, 1000.0),
 
+                        avrgMessageSize = avrgMessageSize,
                         latency = RandomDistribution.uniform(1.0, 50.0)
                     )
                 )
@@ -261,6 +265,44 @@ class Simulation1 {
                         gossipDHigh = 12,
                         gossipDLazy = 10,
                         gossipHeartbeat = gossipHeartbeat.millis,
+                        gossipHeartbeatAddDelay = RandomDistribution.uniform(0.0, 1000.0),
+                        gossipHistory = 100, // increase history to serve low latency IWANT requests
+
+                        latency = RandomDistribution.uniform(1.0, 50.0)
+                    )
+                )
+        }
+        val opt = SimOptions(
+            warmUpDelay = 10.seconds,
+            zeroHeartbeatsDelay = 0.millis,
+            manyHeartbeatsDelay = 30.seconds,
+            generatedNetworksCount = 10,
+            sentMessageCount = 3,
+            parallelIterationsCount = 4
+        )
+
+        sim(cfgs, opt)
+    }
+
+    @Disabled
+    @Test
+    fun testImmediateGossip() {
+        val cfgs = sequence {
+            for (gossipDLazy in arrayOf(10, 15, 20, 25))
+            for (badPeers in arrayOf(0.0, 0.90, 0.95, 0.97))
+            for (immediateGossip in arrayOf(false, true))
+                yield(
+                    SimConfig(
+                        totalPeers = 5000,
+                        badPeers = (5000 * badPeers).toInt(),
+                        topology = RandomNPeers(30),
+
+                        gossipD = 6,
+                        gossipDLow = 5,
+                        gossipDHigh = 7,
+                        gossipDLazy = gossipDLazy,
+                        gossipAdvertise = 1,
+                        gossipImmediateGossip = immediateGossip,
                         gossipHeartbeatAddDelay = RandomDistribution.uniform(0.0, 1000.0),
                         gossipHistory = 100, // increase history to serve low latency IWANT requests
 
@@ -340,6 +382,7 @@ class Simulation1 {
                 GossipSimPeer(Topic).apply {
                     routerInstance = GossipRouter().apply {
                         withDConstants(cfg.gossipD, cfg.gossipDLow, cfg.gossipDHigh, cfg.gossipDLazy)
+                        immediateGossip = cfg.gossipImmediateGossip
                         gossipSize = cfg.gossipAdvertise
                         gossipHistoryLength = cfg.gossipHistory
                         heartbeatInterval = cfg.gossipHeartbeat
@@ -358,6 +401,7 @@ class Simulation1 {
                     msgSizeEstimator = GossipSimPeer.rawPubSubMsgSizeEstimator(cfg.avrgMessageSize)
                     val latencyRandomValue = cfg.latency.newValue(commonRnd)
                     msgDelayer = { latencyRandomValue.next().toLong() }
+                    validationDelay = cfg.gossipValidationDelay
 
                     start()
                 }
