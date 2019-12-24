@@ -345,7 +345,6 @@ class Simulation1 {
             .associate { it.key to it.value.map { it.toString() } }
             .transpose()
 
-
         println("Results: ")
         println("==============")
 

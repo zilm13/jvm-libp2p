@@ -26,7 +26,6 @@ class GraphTest {
             println(graph.edgesOf(v).size)
         }
 
-
 //        val graphMeasurer = GraphMeasurer(graph)
 //        graphMeasurer
 
@@ -79,7 +78,7 @@ class GraphTest {
         }
     }
 
-    fun <V, E> generateRandomGraph(graph: Graph<V,E>, vertexCount: Int, d: Int, random: Random = Random()) {
+    fun <V, E> generateRandomGraph(graph: Graph<V, E>, vertexCount: Int, d: Int, random: Random = Random()) {
         val vertexes = (1..vertexCount).map { graph.addVertex() }
         val remaining = vertexes.toMutableList()
         for (v in vertexes) {
@@ -94,4 +93,3 @@ class GraphTest {
         }
     }
 }
-
