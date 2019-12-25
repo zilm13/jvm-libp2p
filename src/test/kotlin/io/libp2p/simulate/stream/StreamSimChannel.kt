@@ -27,31 +27,33 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
 
     @Synchronized
     fun connect(other: StreamSimChannel) {
+        while (outboundMessages().isNotEmpty()) {
+            send(other, outboundMessages().poll())
+        }
         link = other
-        outboundMessages().forEach(this::send)
     }
 
     @Synchronized
-    override fun handleOutboundMessage(msg: Any?) {
+    override fun handleOutboundMessage(msg: Any) {
         if (link != null) {
-            send(msg!!)
+            send(link!!, msg)
         } else {
             super.handleOutboundMessage(msg)
         }
     }
 
-    private fun send(msg: Any) {
+    private fun send(other: StreamSimChannel, msg: Any) {
         val size = msgSizeEstimator(msg)
         val delay = msgDelayer(size)
 
         val sendNow: () -> Unit = {
-            link!!.writeInbound(msg)
+            other.writeInbound(msg)
             msgSizeHandler(size)
         }
         if (delay > 0) {
-            link!!.executor.schedule(sendNow, delay, TimeUnit.MILLISECONDS)
+            other.executor.schedule(sendNow, delay, TimeUnit.MILLISECONDS)
         } else {
-            link!!.executor.execute(sendNow)
+            other.executor.execute(sendNow)
         }
     }
 
