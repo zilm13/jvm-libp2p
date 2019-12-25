@@ -4,10 +4,15 @@ import io.libp2p.etc.types.lazyVar
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.libp2p.simulate.util.GeneralSizeEstimator
 import io.libp2p.simulate.util.MessageDelayer
+import io.netty.channel.Channel
+import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelId
+import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelPromise
 import io.netty.channel.EventLoop
 import io.netty.channel.embedded.EmbeddedChannel
+import io.netty.util.internal.ObjectUtil
 import org.apache.logging.log4j.LogManager
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
@@ -65,6 +70,21 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
             override fun execute(command: Runnable) {
                 super.execute(command)
                 runPendingTasks()
+            }
+
+            override fun register(channel: Channel): ChannelFuture {
+                return register(DefaultChannelPromise(channel, this))
+            }
+
+            override fun register(promise: ChannelPromise): ChannelFuture {
+                ObjectUtil.checkNotNull(promise, "promise")
+                promise.channel().unsafe().register(this, promise)
+                return promise
+            }
+
+            override fun register(channel: Channel, promise: ChannelPromise): ChannelFuture {
+                channel.unsafe().register(this, promise)
+                return promise
             }
         }
     }
