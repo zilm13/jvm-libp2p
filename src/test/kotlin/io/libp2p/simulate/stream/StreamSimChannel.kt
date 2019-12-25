@@ -6,6 +6,7 @@ import io.libp2p.simulate.util.GeneralSizeEstimator
 import io.libp2p.simulate.util.MessageDelayer
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelId
+import io.netty.channel.EventLoop
 import io.netty.channel.embedded.EmbeddedChannel
 import org.apache.logging.log4j.LogManager
 import java.util.concurrent.CompletableFuture
@@ -54,6 +55,17 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
             other.executor.schedule(sendNow, delay, TimeUnit.MILLISECONDS)
         } else {
             other.executor.execute(sendNow)
+        }
+    }
+
+    private open class DelegatingEventLoop(val delegate: EventLoop) : EventLoop by delegate
+
+    override fun eventLoop(): EventLoop {
+        return object : DelegatingEventLoop(super.eventLoop()) {
+            override fun execute(command: Runnable) {
+                super.execute(command)
+                runPendingTasks()
+            }
         }
     }
 
