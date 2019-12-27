@@ -1,4 +1,4 @@
-package io.libp2p.simulate.gossip.test
+package io.libp2p.simulate.test
 
 import io.libp2p.core.pubsub.Topic
 import io.libp2p.etc.types.toByteBuf
