@@ -1,5 +1,8 @@
-package io.libp2p.simulate.topology
+package io.libp2p.simulate.test
 
+import io.libp2p.simulate.topology.ClusteredNPeers
+import io.libp2p.simulate.topology.WEdge
+import io.libp2p.simulate.topology.WVertex
 import org.jgrapht.Graph
 import org.jgrapht.generate.BarabasiAlbertGraphGenerator
 import org.jgrapht.generate.RandomRegularGraphGenerator
