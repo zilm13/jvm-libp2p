@@ -112,7 +112,8 @@ open class Builder {
         val secureChannels = secureChannels.values.map { it(privKey) }
         val muxers = muxers.values.map { it() }
 
-        muxers.mapNotNull { it as? StreamMuxerDebug }.forEach { it.muxFramesDebugHandler = debug.muxFramesHandler.handler }
+        muxers.mapNotNull { it as? StreamMuxerDebug }
+            .forEach { it.muxFramesDebugHandler = debug.muxFramesHandler.handler }
 
         val upgrader = ConnectionUpgrader(secureChannels, muxers).apply {
             beforeSecureHandler = debug.beforeSecureHandler.handler
@@ -122,23 +123,25 @@ open class Builder {
         val transports = transports.values.map { it(upgrader) }
         val addressBook = addressBook.impl
 
-        protocols.values.mapNotNull { (it as? IdentifyBinding) }.map { it.protocol }.find { it.idMessage == null }?.apply {
-            // initializing Identify with appropriate values
-            IdentifyOuterClass.Identify.newBuilder().apply {
-                agentVersion = "jvm/0.1"
-                protocolVersion = "p2p/0.1"
-                publicKey = privKey.publicKey().bytes().toProtobuf()
-                addAllListenAddrs(network.listen.map { Multiaddr(it).getBytes().toProtobuf() })
-                addAllProtocols(protocols.map { it.announce })
-            }.build().also {
-                this.idMessage = it
+        protocols.values.mapNotNull { (it as? IdentifyBinding) }.map { it.protocol }.find { it.idMessage == null }
+            ?.apply {
+                // initializing Identify with appropriate values
+                IdentifyOuterClass.Identify.newBuilder().apply {
+                    agentVersion = "jvm/0.1"
+                    protocolVersion = "p2p/0.1"
+                    publicKey = privKey.publicKey().bytes().toProtobuf()
+                    addAllListenAddrs(network.listen.map { Multiaddr(it).getBytes().toProtobuf() })
+                    addAllProtocols(protocols.map { it.announce })
+                }.build().also {
+                    this.idMessage = it
+                }
             }
-        }
 
         val protocolsMultistream: Multistream<Any> = Multistream.create(protocols.values)
         val broadcastStreamHandler = StreamHandler.createBroadcast()
         val allStreamHandlers = StreamHandler.createBroadcast(
-            protocolsMultistream.toStreamHandler(), broadcastStreamHandler)
+            protocolsMultistream.toStreamHandler(), broadcastStreamHandler
+        )
 
         val connHandlerProtocols = protocols.values.mapNotNull { it as? ConnectionHandler }
         val broadcastConnHandler = ConnectionHandler.createBroadcast(
@@ -171,6 +174,7 @@ class IdentityBuilder {
 
     fun random() = random(KEY_TYPE.ECDSA)
     fun random(keyType: KEY_TYPE): IdentityBuilder = apply { factory = { generateKeyPair(keyType).first } }
+    fun withPrivKey(privKey: PrivKey): IdentityBuilder = apply { factory = { privKey } }
 }
 
 class AddressBookBuilder {
