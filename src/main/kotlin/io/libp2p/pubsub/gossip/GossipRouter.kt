@@ -139,7 +139,6 @@ open class GossipRouter : AbstractRouter() {
                 .shuffled(random).take(DGossip)
             submitGossip(topic, gossipPeers)
         }
-
     }
 
     override fun subscribe(topic: String) {

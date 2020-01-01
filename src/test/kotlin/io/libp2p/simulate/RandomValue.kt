@@ -10,7 +10,7 @@ interface RandomValue {
         fun const(constVal: Double) = object : RandomValue {
             override fun next() = constVal
         }
-        fun uniform(from: Double, to: Double, rnd: Random)= object : RandomValue {
+        fun uniform(from: Double, to: Double, rnd: Random) = object : RandomValue {
             override fun next() = from + rnd.nextDouble() * (to - from)
         }
     }

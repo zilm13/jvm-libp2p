@@ -61,6 +61,7 @@ fun <C> anyComplete(all: List<CompletableFuture<C>>): CompletableFuture<C> =
 fun <C> anyComplete(vararg all: CompletableFuture<C>): CompletableFuture<C> {
     return if (all.isEmpty()) completedExceptionally(NothingToCompleteException())
     else object : CompletableFuture<C>() {
+        val counter = AtomicInteger(all.size)
         init {
             all.forEach { it.whenComplete { v, t ->
                 if (t == null) {
@@ -70,6 +71,5 @@ fun <C> anyComplete(vararg all: CompletableFuture<C>): CompletableFuture<C> {
                 }
             } }
         }
-        val counter = AtomicInteger(all.size)
     }
 }
