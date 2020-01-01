@@ -33,7 +33,6 @@ repositories {
     mavenCentral()
 }
 
-val kotlinVersion = "1.3.31"
 val log4j2Version = "2.11.2"
 
 dependencies {
@@ -54,7 +53,7 @@ dependencies {
     testCompile("org.apache.commons:commons-math3:3.6.1")
     testCompile("org.junit.jupiter:junit-jupiter-api:5.4.2")
     testCompile("org.junit.jupiter:junit-jupiter-params:5.4.2")
-    testCompile("org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}")
+    testCompile("org.jetbrains.kotlin:kotlin-reflect:1.3.0")
     testRuntime("org.junit.jupiter:junit-jupiter-engine:5.4.2")
 }
 

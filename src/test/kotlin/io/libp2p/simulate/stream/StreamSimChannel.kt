@@ -4,9 +4,15 @@ import io.libp2p.etc.types.lazyVar
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.libp2p.simulate.util.GeneralSizeEstimator
 import io.libp2p.simulate.util.MessageDelayer
+import io.netty.channel.Channel
+import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelId
+import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelPromise
+import io.netty.channel.EventLoop
 import io.netty.channel.embedded.EmbeddedChannel
+import io.netty.util.internal.ObjectUtil
 import org.apache.logging.log4j.LogManager
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
@@ -27,31 +33,59 @@ class StreamSimChannel(id: String, vararg handlers: ChannelHandler?) :
 
     @Synchronized
     fun connect(other: StreamSimChannel) {
+        while (outboundMessages().isNotEmpty()) {
+            send(other, outboundMessages().poll())
+        }
         link = other
-        outboundMessages().forEach(this::send)
     }
 
     @Synchronized
-    override fun handleOutboundMessage(msg: Any?) {
+    override fun handleOutboundMessage(msg: Any) {
         if (link != null) {
-            send(msg!!)
+            send(link!!, msg)
         } else {
             super.handleOutboundMessage(msg)
         }
     }
 
-    private fun send(msg: Any) {
+    private fun send(other: StreamSimChannel, msg: Any) {
         val size = msgSizeEstimator(msg)
         val delay = msgDelayer(size)
 
         val sendNow: () -> Unit = {
-            link!!.writeInbound(msg)
+            other.writeInbound(msg)
             msgSizeHandler(size)
         }
         if (delay > 0) {
-            link!!.executor.schedule(sendNow, delay, TimeUnit.MILLISECONDS)
+            other.executor.schedule(sendNow, delay, TimeUnit.MILLISECONDS)
         } else {
-            link!!.executor.execute(sendNow)
+            other.executor.execute(sendNow)
+        }
+    }
+
+    private open class DelegatingEventLoop(val delegate: EventLoop) : EventLoop by delegate
+
+    override fun eventLoop(): EventLoop {
+        return object : DelegatingEventLoop(super.eventLoop()) {
+            override fun execute(command: Runnable) {
+                super.execute(command)
+                runPendingTasks()
+            }
+
+            override fun register(channel: Channel): ChannelFuture {
+                return register(DefaultChannelPromise(channel, this))
+            }
+
+            override fun register(promise: ChannelPromise): ChannelFuture {
+                ObjectUtil.checkNotNull(promise, "promise")
+                promise.channel().unsafe().register(this, promise)
+                return promise
+            }
+
+            override fun register(channel: Channel, promise: ChannelPromise): ChannelFuture {
+                channel.unsafe().register(this, promise)
+                return promise
+            }
         }
     }
 

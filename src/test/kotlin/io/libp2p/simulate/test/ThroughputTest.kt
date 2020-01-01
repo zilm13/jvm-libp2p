@@ -1,6 +1,7 @@
-package io.libp2p.simulate.util
+package io.libp2p.simulate.test
 
 import io.libp2p.simulate.RandomValue
+import io.libp2p.simulate.util.Throughput
 import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl
 import io.libp2p.tools.schedulers.TimeControllerImpl
 import io.netty.channel.embedded.EmbeddedChannel
@@ -14,7 +15,12 @@ class ThroughputTest {
         val timeController = TimeControllerImpl()
         val executor = ControlledExecutorServiceImpl(timeController)
         val throughput =
-            Throughput(RandomValue.const(5000.0), executor, { (it as ByteArray).size }, timeController::getTime)
+            Throughput(
+                RandomValue.const(5000.0),
+                executor,
+                { (it as ByteArray).size },
+                timeController::getTime
+            )
         val ch1 = EmbeddedChannel(throughput.createDelayHandler())
         val ch2 = EmbeddedChannel(throughput.createDelayHandler())
 
