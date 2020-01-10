@@ -171,6 +171,7 @@ class IdentityBuilder {
 
     fun random() = random(KEY_TYPE.ECDSA)
     fun random(keyType: KEY_TYPE): IdentityBuilder = apply { factory = { generateKeyPair(keyType).first } }
+    fun withPrivKey(privKey: PrivKey): IdentityBuilder = apply { factory = { privKey } }
 }
 
 class AddressBookBuilder {
