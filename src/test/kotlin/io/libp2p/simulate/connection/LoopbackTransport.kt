@@ -44,10 +44,14 @@ class LoopbackTransport(
     }
 
     override fun dial(addr: Multiaddr, connHandler: ConnectionHandler): CompletableFuture<Connection> {
-        val remoteIp = addr.getStringComponent(Protocol.IP4) ?: throw IllegalArgumentException("No IP4 component in dial addr: $addr")
-        val remotePort = addr.getStringComponent(Protocol.TCP)?.toInt() ?: throw IllegalArgumentException("No TCP component in dial addr: $addr")
-        val remoteTransport = net.ipTransportMap[remoteIp] ?: return completedExceptionally(ConnectException("No peers listening on IP $remoteIp"))
-        val remoteHandler = remoteTransport.listeners[remotePort] ?: return completedExceptionally(ConnectException("Remote peer $remoteIp not listening on port $remotePort"))
+        val remoteIp = addr.getStringComponent(Protocol.IP4)
+            ?: throw IllegalArgumentException("No IP4 component in dial addr: $addr")
+        val remotePort = addr.getStringComponent(Protocol.TCP)?.toInt()
+            ?: throw IllegalArgumentException("No TCP component in dial addr: $addr")
+        val remoteTransport = net.ipTransportMap[remoteIp]
+            ?: return completedExceptionally(ConnectException("No peers listening on IP $remoteIp"))
+        val remoteHandler = remoteTransport.listeners[remotePort]
+            ?: return completedExceptionally(ConnectException("Remote peer $remoteIp not listening on port $remotePort"))
 
         val localPort = portManager.acquire()
 

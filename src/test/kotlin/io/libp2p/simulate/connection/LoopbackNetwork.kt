@@ -3,7 +3,10 @@ package io.libp2p.simulate.connection
 import io.libp2p.core.Host
 import io.libp2p.core.dsl.Builder
 import io.libp2p.core.dsl.TransportsBuilder
+import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.multiformats.Protocol
 import io.libp2p.etc.types.lazyVar
+import io.libp2p.host.HostImpl
 import io.libp2p.simulate.Network
 import io.libp2p.transport.ConnectionUpgrader
 import java.util.Random
@@ -17,8 +20,7 @@ class LoopbackNetwork : Network {
     private var ipCounter = AtomicInteger(1)
     internal val ipTransportMap = mutableMapOf<String, LoopbackTransport>()
 
-    fun createLoopbackTransportCtor(): (ConnectionUpgrader) -> LoopbackTransport {
-        val newIp = newIp()
+    fun createLoopbackTransportCtor(newIp: String = newIp()): (ConnectionUpgrader) -> LoopbackTransport {
         return { upgrader ->
             LoopbackTransport(upgrader, this, simExecutor, newIp).also {
                 ipTransportMap[it.localIp] = it
@@ -34,12 +36,19 @@ class LoopbackNetwork : Network {
 
     fun newPeer(fn: Builder.() -> Unit): HostSimPeer {
         val host = (object : Builder() {
-            init {
-                transports += createLoopbackTransportCtor()
-            }
-
             override fun transports(fn: TransportsBuilder.() -> Unit): Builder {
                 throw UnsupportedOperationException("Transports shouldn't be configured by client code")
+            }
+
+            override fun build(): HostImpl {
+                transports += if (network.listen.isEmpty()) {
+                    createLoopbackTransportCtor()
+                } else {
+                    val ipBytes = Multiaddr(network.listen[0]).getComponent(Protocol.IP4)
+                        ?: throw RuntimeException("IP4 address in listen block is required")
+                    createLoopbackTransportCtor(Protocol.IP4.bytesToAddress(ipBytes))
+                }
+                return super.build()
             }
         }).apply(fn).build()
         return newPeer(host)

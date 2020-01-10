@@ -102,7 +102,7 @@ open class Builder {
     /**
      * Constructs the Host with the provided parameters.
      */
-    fun build(): HostImpl {
+    open fun build(): HostImpl {
         if (secureChannels.values.isEmpty()) throw HostConfigurationException("at least one secure channel is required")
         if (muxers.values.isEmpty()) throw HostConfigurationException("at least one muxer is required")
         if (transports.values.isEmpty()) throw HostConfigurationException("at least one transport is required")
