@@ -102,7 +102,7 @@ open class Builder {
     /**
      * Constructs the Host with the provided parameters.
      */
-    fun build(): HostImpl {
+    open fun build(): HostImpl {
         if (secureChannels.values.isEmpty()) throw HostConfigurationException("at least one secure channel is required")
         if (muxers.values.isEmpty()) throw HostConfigurationException("at least one muxer is required")
         if (transports.values.isEmpty()) throw HostConfigurationException("at least one transport is required")
@@ -171,6 +171,7 @@ class IdentityBuilder {
 
     fun random() = random(KEY_TYPE.ECDSA)
     fun random(keyType: KEY_TYPE): IdentityBuilder = apply { factory = { generateKeyPair(keyType).first } }
+    fun withPrivKey(privKey: PrivKey): IdentityBuilder = apply { factory = { privKey } }
 }
 
 class AddressBookBuilder {
