@@ -62,7 +62,7 @@ data class NodesMessage(val nodes: Collection<Enr>) : Message {
         val out: CodedOutputStream = CodedOutputStream.newInstance(baos)
         out.writeInt32(1, getType())
         var index = 0
-        for (it in nodes) {
+        nodes.forEach {
             out.writeByteArray(index + 2, it.getBytes())
             index++
         }
